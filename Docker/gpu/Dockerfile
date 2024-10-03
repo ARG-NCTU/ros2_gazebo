@@ -34,10 +34,6 @@ RUN apt-get update && \
     gawk \
     make \
     ninja-build \
-    libtool \
-    libxml2-dev \
-    libxml2-utils \
-    libxslt1-dev \
     python3-numpy \
     python3-pyparsing \
     python3-serial \
@@ -67,20 +63,24 @@ RUN apt-get update && \
     libfftw3-dev \
     rapidjson-dev \
     pkg-config \
-    libgazebo-dev \
     libboost-system-dev \
-    libtinyxml2-dev \
-    libsdformat-dev \
     libopencv-dev \
-    libgstreamer1.0-dev \
-    libgstreamer-plugins-base1.0-dev \
-    libgps-dev \
     gstreamer1.0-plugins-bad \
-    libgflags-dev \
     gstreamer1.0-libav \
     gstreamer1.0-gl \
     software-properties-common \
     && rm -rf /var/lib/apt/lists/*
+    # libsdformat-dev \
+    # libtool \
+    # libxml2-dev \
+    # libxml2-utils \
+    # libxslt1-dev \
+    # libgazebo-dev \
+    # libtinyxml2-dev \
+    # libgstreamer1.0-dev \
+    # libgstreamer-plugins-base1.0-dev \
+    # libgps-dev \
+    # libgflags-dev \
 
 ###################################### python pkg###############################
 RUN apt-get update && apt-get upgrade pip -y && \
@@ -146,8 +146,10 @@ RUN curl https://packages.osrfoundation.org/gazebo.gpg --output /usr/share/keyri
     apt-get install -y \
     libgz-sim8-dev \
     libgz-transport13-dev \
+    libignition-utils1-dev \
     libsdformat14-dev \
     gz-${GZ_VERSION} \
+    ros-${ROS_DISTRO}-ros-gz${GZ_VERSION} \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     rosdep init && \
@@ -180,7 +182,10 @@ ENV TZ=UTC
 ###################################### sitl ################################################
 
 ARG ARDU_WS=/opt/ardupilot_ws
-RUN mkdir -p ${ARDU_WS}/src && \
+RUN apt-get update && \
+    apt-get install -q -y --no-install-recommends \
+    libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgps-dev && \
+    mkdir -p ${ARDU_WS}/src && \
     cd ${ARDU_WS}/src && \
     git clone -b ${ROS_DISTRO} https://github.com/micro-ROS/micro_ros_msgs.git && \
     git clone https://github.com/ArduPilot/ardupilot.git && \
