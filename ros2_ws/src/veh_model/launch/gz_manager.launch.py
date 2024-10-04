@@ -28,7 +28,8 @@ def launch_setup(context, *args, **kwargs):
         robot_desc = infp.read()
         robot_desc = robot_desc.replace(
             f"models://{veh}",
-            f"package://veh_model/models/{veh}")
+            f"package://veh_model/models/{veh}"
+        )
 
     # Publish /tf and /tf_static.
     robot_state_publisher = Node(
@@ -40,6 +41,8 @@ def launch_setup(context, *args, **kwargs):
             {"robot_description": robot_desc},
             {"frame_prefix": ""},
         ],
+        remappings=[("/tf", "tf"), ("/tf_static", "tf_static")],
+        namespace=veh,
     )
 
     # Define the Gazebo simulation server
@@ -52,12 +55,12 @@ def launch_setup(context, *args, **kwargs):
 
     gz_sim_guest = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([pkg_ros_gz_sim, "/launch/gz_sim.launch.py"]),
-        condition=IfCondition(LaunchConfiguration('gz_gui')),
         launch_arguments={"gz_args": "-v4 -g"}.items(),
+        condition=IfCondition(LaunchConfiguration('gz_gui')),
     )
 
-    # Define the bridge node to convert Gazebo topics to ROS2 topics
-    bridge = Node(
+    # Define the topic_bridge node to convert Gazebo topics to ROS2 topics
+    topic_bridge = Node(
         package="ros_gz_bridge",
         executable="parameter_bridge",
         parameters=[
@@ -67,6 +70,7 @@ def launch_setup(context, *args, **kwargs):
             }
         ],
         output="screen",
+        namespace=veh,
     )
 
     server_bridge = Node(
@@ -75,7 +79,8 @@ def launch_setup(context, *args, **kwargs):
         arguments=[
             f'/world/{world}/control@ros_gz_interfaces/srv/ControlWorld@ignition.msgs.WorldControl@ignition.msgs.Boolean'
         ],
-        output='screen'
+        output='screen',
+        namespace=veh,
     )
 
     # Relay /gz/tf -> /tf for tf data from Gazebo to ROS
@@ -83,12 +88,13 @@ def launch_setup(context, *args, **kwargs):
         package="topic_tools",
         executable="relay",
         arguments=[
-            "/gz/tf",
-            "/tf",
+            f"/{veh}/tf",
+            "tf",
         ],
         output="screen",
         respawn=False,
         condition=IfCondition(LaunchConfiguration("use_gz_tf")),
+        namespace=veh,
     )
 
     # Define the RViz node
@@ -102,11 +108,11 @@ def launch_setup(context, *args, **kwargs):
     # Return all the launch actions
     return [
         robot_state_publisher,
-        bridge,
+        topic_bridge,
         server_bridge,
         RegisterEventHandler(
             OnProcessStart(
-                target_action=bridge,
+                target_action=topic_bridge,
                 on_start=[
                     topic_tools_tf
                 ]
