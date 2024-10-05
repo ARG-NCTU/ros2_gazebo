@@ -1,11 +1,12 @@
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, TwistStamped
 from std_msgs.msg import Float64
+import sys
 
 class ThrustCalculatorNode(Node):
-    def __init__(self):
-        super().__init__('thrust_calculator')
+    def __init__(self, name):
+        super().__init__(f'{name}_thrust_calculator')
         
         # Parameters for the thrust calculation
         self.C_T_port = -0.02  # Thrust coefficient for port motor
@@ -16,19 +17,19 @@ class ThrustCalculatorNode(Node):
         
         # Subscriber to cmd_vel
         self.subscription = self.create_subscription(
-            Twist,
-            'cmd_vel',
+            TwistStamped,
+            f'/{name}/{name}_thrust_calculator/cmd_vel',
             self.cmd_vel_callback,
             10)
         
         # Publishers for port and starboard motor thrusts
-        self.port_thrust_publisher = self.create_publisher(Float64, 'port_motor/thrust', 10)
-        self.stbd_thrust_publisher = self.create_publisher(Float64, 'stbd_motor/thrust', 10)
+        self.port_thrust_publisher = self.create_publisher(Float64, f'/model/{name}/joint/motor_port_joint/cmd_thrust', 10)
+        self.stbd_thrust_publisher = self.create_publisher(Float64, f'/model/{name}/joint/motor_stbd_joint/cmd_thrust', 10)
 
     def cmd_vel_callback(self, msg):
         # Get the linear and angular velocity from the cmd_vel message
-        v_x = msg.linear.x
-        omega_z = msg.angular.z
+        v_x = msg.twist.linear.x
+        omega_z = msg.twist.angular.z
 
         # Calculate angular velocities for port and starboard motors
         omega_port = (v_x / self.D) - (omega_z * self.W / 2)
@@ -54,7 +55,15 @@ class ThrustCalculatorNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = ThrustCalculatorNode()
+    
+    # Get the name argument from the command line
+    if len(sys.argv) > 1:
+        name = sys.argv[1]
+    else:
+        name = 'default'  # Fallback name if none is provided
+
+    # Create the node with the provided name
+    node = ThrustCalculatorNode(name)
     rclpy.spin(node)
 
     # Shutdown ROS 2
