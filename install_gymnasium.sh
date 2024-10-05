@@ -1,4 +1,4 @@
 #!/bin/bash
 
-pip3 install -e gymnasium
-pip3 install -e sb3
+pip3 install --use-pep517 -e gymnasium/
+pip3 install --use-pep517 -e sb3/
