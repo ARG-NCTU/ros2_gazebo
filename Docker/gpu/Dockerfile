@@ -35,6 +35,7 @@ RUN apt-get update && \
     make \
     ninja-build \
     python3-numpy \
+    python3-dev \
     python3-pyparsing \
     python3-serial \
     python-is-python3 \
@@ -55,6 +56,7 @@ RUN apt-get update && \
     wget \
     sudo \
     cmake \
+    swig \
     net-tools \
     lsb-release \
     gnupg \
@@ -70,17 +72,6 @@ RUN apt-get update && \
     gstreamer1.0-gl \
     software-properties-common \
     && rm -rf /var/lib/apt/lists/*
-    # libsdformat-dev \
-    # libtool \
-    # libxml2-dev \
-    # libxml2-utils \
-    # libxslt1-dev \
-    # libgazebo-dev \
-    # libtinyxml2-dev \
-    # libgstreamer1.0-dev \
-    # libgstreamer-plugins-base1.0-dev \
-    # libgps-dev \
-    # libgflags-dev \
 
 ###################################### python pkg###############################
 RUN apt-get update && apt-get upgrade pip -y && \
@@ -100,7 +91,30 @@ RUN apt-get update && apt-get upgrade pip -y && \
     MAVProxy \
     pyserial \
     pexpect \
+    Pillow \
+    tensorboard \
+    tensorflow \
     future
+
+################################## torch gymnasium sb3 #####################################
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install --no-cache-dir --ignore-installed PyYAML && \
+    python3 -m pip install \
+    torch \
+    torchaudio \
+    torchvision \
+    gymnasium \
+    gymnasium[box2d] \
+    stable-baselines3 \
+    openai \
+    trajectopy-core \
+    huggingface-sb3 \
+    huggingface_hub \
+    transformers \
+    datasets \
+    hf_transfer \
+    opencv-python-headless \
+    timm
 
 ###################################### ros2 ####################################
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \

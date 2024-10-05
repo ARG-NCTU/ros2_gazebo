@@ -1,4 +1,5 @@
-FROM ubuntu:22.04 AS main-setup
+FROM nvidia/cuda:12.0.0-cudnn8-devel-ubuntu22.04 AS main-setup
+
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -33,11 +34,8 @@ RUN apt-get update && \
     gawk \
     make \
     ninja-build \
-    libtool \
-    libxml2-dev \
-    libxml2-utils \
-    libxslt1-dev \
     python3-numpy \
+    python3-dev \
     python3-pyparsing \
     python3-serial \
     python-is-python3 \
@@ -58,6 +56,7 @@ RUN apt-get update && \
     wget \
     sudo \
     cmake \
+    swig \
     net-tools \
     lsb-release \
     gnupg \
@@ -66,16 +65,9 @@ RUN apt-get update && \
     libfftw3-dev \
     rapidjson-dev \
     pkg-config \
-    libgazebo-dev \
     libboost-system-dev \
-    libtinyxml2-dev \
-    libsdformat-dev \
     libopencv-dev \
-    libgstreamer1.0-dev \
-    libgstreamer-plugins-base1.0-dev \
-    libgps-dev \
     gstreamer1.0-plugins-bad \
-    libgflags-dev \
     gstreamer1.0-libav \
     gstreamer1.0-gl \
     software-properties-common \
@@ -99,7 +91,30 @@ RUN apt-get update && apt-get upgrade pip -y && \
     MAVProxy \
     pyserial \
     pexpect \
+    Pillow \
+    tensorboard \
+    tensorflow \
     future
+
+################################## torch gymnasium sb3 #####################################
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install --no-cache-dir --ignore-installed PyYAML && \
+    python3 -m pip install \
+    torch \
+    torchaudio \
+    torchvision \
+    gymnasium \
+    gymnasium[box2d] \
+    stable-baselines3 \
+    openai \
+    trajectopy-core \
+    huggingface-sb3 \
+    huggingface_hub \
+    transformers \
+    datasets \
+    hf_transfer \
+    opencv-python-headless \
+    timm
 
 ###################################### ros2 ####################################
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
@@ -145,8 +160,10 @@ RUN curl https://packages.osrfoundation.org/gazebo.gpg --output /usr/share/keyri
     apt-get install -y \
     libgz-sim8-dev \
     libgz-transport13-dev \
+    libignition-utils1-dev \
     libsdformat14-dev \
     gz-${GZ_VERSION} \
+    ros-${ROS_DISTRO}-ros-gz${GZ_VERSION} \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     rosdep init && \
@@ -179,7 +196,10 @@ ENV TZ=UTC
 ###################################### sitl ################################################
 
 ARG ARDU_WS=/opt/ardupilot_ws
-RUN mkdir -p ${ARDU_WS}/src && \
+RUN apt-get update && \
+    apt-get install -q -y --no-install-recommends \
+    libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgps-dev && \
+    mkdir -p ${ARDU_WS}/src && \
     cd ${ARDU_WS}/src && \
     git clone -b ${ROS_DISTRO} https://github.com/micro-ROS/micro_ros_msgs.git && \
     git clone https://github.com/ArduPilot/ardupilot.git && \
@@ -205,7 +225,7 @@ ENV PATH=/usr/lib/ccache:$PATH
 ARG GZ_ENV_WS=/opt/gzenv_ws
 RUN mkdir -p ${GZ_ENV_WS}/src && \
     cd ${GZ_ENV_WS}/src && \
-    git clone https://github.com/ARG-NCTU/asv_wave_sim.git && cd .. && \
+    git clone https://github.com/uwe77/asv_wave_sim.git && cd .. && \
     colcon build --symlink-install --merge-install --cmake-args \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DBUILD_TESTING=ON \
@@ -213,7 +233,7 @@ RUN mkdir -p ${GZ_ENV_WS}/src && \
     cd ${GZ_ENV_WS}/src/asv_wave_sim/gz-waves/src/gui/plugins/waves_control && \
     mkdir build && cd build && \
     cmake .. && make
-
+    
 ENV GZ_SIM_RESOURCE_PATH=${ARDU_WS}/src/ardupilot_gazebo/worlds:${ARDU_WS}/src/ardupilot_gazebo/models:$HOME/ardupilot_gazebo/worlds:${GZ_ENV_WS}/src/asv_wave_sim/gz-waves-models/models:${GZ_ENV_WS}/src/asv_wave_sim/gz-waves-models/world_models:${GZ_ENV_WS}/src/asv_wave_sim/gz-waves-models/worlds \
     GZ_SIM_SYSTEM_PLUGIN_PATH=${ARDU_WS}/install/ardupilot_gazebo/lib/ardupilot_gazebo/lib:${GZ_ENV_WS}/install/lib \
     GZ_GUI_PLUGIN_PATH=${GZ_ENV_WS}/src/asv_wave_sim/gz-waves/src/gui/plugins/waves_control/build
@@ -225,15 +245,3 @@ RUN echo "root ALL=(ALL)  ALL" >> /etc/sudoers \
 
 ENV XLA_PYTHON_CLIENT_PREALLOCATE=false
 ENV HF_HUB_ENABLE_HF_TRANSFER=1
-
-###################################### ardupilot ################################
-RUN usermod -aG sudo uwe
-USER uwe
-RUN cd ~/ros2_docker/ros2_ws/src && git clone git@github.com:ArduPilot/ardupilot.git --recurse-submodules && \
-    cd ardupilot && Tools/environment_install/install-prereqs-ubuntu.sh -y
-
-RUN sudo apt-get install python3-dev python3-opencv python3-wxgtk4.0 python3-pip python3-matplotlib python3-lxml python3-pygame
-
-RUN pip3 install PyYAML mavproxy --user
-
-RUN echo 'export PATH="$PATH:$HOME/.local/bin"' >> ~/.bashrc && source ~/.bashrc && export DISPLAY=:0
