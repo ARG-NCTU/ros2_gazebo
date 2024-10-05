@@ -70,17 +70,6 @@ RUN apt-get update && \
     gstreamer1.0-gl \
     software-properties-common \
     && rm -rf /var/lib/apt/lists/*
-    # libsdformat-dev \
-    # libtool \
-    # libxml2-dev \
-    # libxml2-utils \
-    # libxslt1-dev \
-    # libgazebo-dev \
-    # libtinyxml2-dev \
-    # libgstreamer1.0-dev \
-    # libgstreamer-plugins-base1.0-dev \
-    # libgps-dev \
-    # libgflags-dev \
 
 ###################################### python pkg###############################
 RUN apt-get update && apt-get upgrade pip -y && \
