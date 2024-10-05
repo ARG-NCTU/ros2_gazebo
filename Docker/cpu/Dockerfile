@@ -12,7 +12,6 @@ ENV ROS_DISTRO=humble \
 RUN echo 'Etc/UTC' > /etc/timezone && \
     ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime
 
-
 ###################################### user #####################################
 RUN adduser --disabled-password \
     --gecos "Default user" \
