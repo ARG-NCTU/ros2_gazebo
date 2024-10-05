@@ -76,11 +76,15 @@ class GZ_MODEL(Node):
 class BlueBoat_GZ_MODEL(GZ_MODEL):
     def __init__(self, world, name, path, pose=np.zeros(7)):
         super().__init__(name=name, path=path, world=world, init_pose=pose)
-        self.pub['cmd_vel'] = self.create_publisher(TwistStamped, f'/{self.name}/cmd_vel', 10)
-        self.sub['pose'] = self.create_subscription(PoseStamped, f'/model/{self.name}/pose', self.__pose_cb, 10)
+        self.pub['cmd_vel'] = self.create_publisher(TwistStamped, f'/{name}/{name}_thrust_calculator/cmd_vel', 10)
+        self.sub['pose'] = self.create_subscription(PoseStamped, f'/model/{name}/pose', self.__pose_cb, 10)
         self.sub['imu'] = self.create_subscription(TwistStamped, f'/world/{world}/model/{name}/link/imu_link/sensor/imu_sensor/imu', self.__imu_cb, 10)
+        self.sub['termination'] = self.create_subscription(Float32, f'/world/empty/model/{name}/link/base_link/sensor/sensor_contact/contact', self.__termination_cb, 10)
         self.obs['pose'] = Pose()
         self.obs['twist'] = Twist()
+        self.obs['termination'] = False
+        self.obs['truncation'] = False
+        self.step_cnt = 0
         self.bridge.append(
             subprocess.Popen([
                 "ros2", "run", "ros_gz_bridge", "parameter_bridge",
@@ -108,17 +112,19 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
         self.bridge.append(
             subprocess.Popen([
                 "ros2", "run", "veh_model", "bb_twist2thrust",
-                f"{name}"
+                f"{name}" #topic: sub /{name}/{name}_thrust_calculator/cmd_vel@TwistStamped
             ])
         )
         self.setup()
         
     def get_observation(self):
-        return {
-            'pose': self.obs['pose'],
-            'pos_acc': np.array([self.obs['twist'].linear.x, self.obs['twist'].linear.y, self.obs['twist'].linear.z]),
-            'ang_vel': np.array([self.obs['twist'].angular.x, self.obs['twist'].angular.y, self.obs['twist'].angular.z]),
-        }
+        return self.obs
+    
+    def reset(self):
+        self.obs['termination'] = False
+        self.obs['truncation'] = False
+        self.step_cnt = 0
+        super().reset()
     
     ############################# private funcs #############################
     def __pose_cb(self, msg):
@@ -136,3 +142,5 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
         self.obs['twist'].angular.x /= sum
         self.obs['twist'].angular.y /= sum
         self.obs['twist'].angular.z /= sum
+    def __termination_cb(self, msg):
+        self.obs['termination'] = True if msg is not None else False
