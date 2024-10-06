@@ -240,7 +240,7 @@ ENV GZ_SIM_RESOURCE_PATH=${ARDU_WS}/src/ardupilot_gazebo/worlds:${ARDU_WS}/src/a
 
 ###################################### ros2 c/c++ ################################
 RUN apt update && apt install -y \
-    libignition-transport11-dev
+    libignition-transport12-dev
     
 RUN echo "root ALL=(ALL)  ALL" >> /etc/sudoers \
     && echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> ${HOME}/.bashrc \
