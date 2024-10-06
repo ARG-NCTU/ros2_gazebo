@@ -35,27 +35,13 @@ def launch_setup(context, *args, **kwargs):
         executable='parameter_bridge',
         arguments=[
             f'/world/{world}/control@ros_gz_interfaces/srv/ControlWorld@ignition.msgs.WorldControl@ignition.msgs.Boolean', 
-            f'/world/{world}/create@ros_gz_interfaces/srv/SpawnEntity@ignition.msgs.EntityFactory@ignition.msgs.Boolean',
-            f'/world/{world}/remove@ros_gz_interfaces/srv/DeleteEntity@ignition.msgs.Entity@ignition.msgs.Boolean'
         ],
         output='screen',
     )
-
-    move_entity = Node(
-        package='ros_gz_bridge',
-        executable='parameter_bridge',
-        arguments=[
-            f'/world/{world}/move@ros_gz_interfaces/srv/SetEntityPose@ignition.msgs.Entity@ignition.msgs.Boolean'
-        ],
-        output='screen',
-    )
-
-
 
     # Return all the launch actions
     return [
         server,
-        # move_entity,
         gz_sim_server, 
         gz_sim_guest, 
     ]

@@ -43,13 +43,6 @@ class BlueBoat_V1(gym.Env, Node):
         rclpy.init()
         Node.__init__(self, self.info['node_name'])
         ################ ROS2 params ################
-        self.bridge = []
-        # if not headless:
-        #     self.bridge.append(
-        #         subprocess.Popen([
-        #             "gz", "sim", "-v4 -g"
-        #         ])
-        #     )
         self.gz_world = self.create_client(ControlWorld, f'/world/{world}/control')
         
         self.__pause()
@@ -67,7 +60,7 @@ class BlueBoat_V1(gym.Env, Node):
                     position=Point(x=float(i*dis-dis*num_x//2), y=float(j*dis-dis*num_y//2), z=0.8),
                     orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
                 ),
-                info={'maxstep': maxstep, 'max_thrust': max_thrust, 'hist_frame': hist_frame}
+                info={'veh':'blueboat', 'maxstep': maxstep, 'max_thrust': max_thrust, 'hist_frame': hist_frame}
             )
             for i in range(num_x) for j in range(num_y)])
         self.veh.extend([
@@ -79,7 +72,7 @@ class BlueBoat_V1(gym.Env, Node):
                     position=Point(x=float(i*dis+dis*num_x//2), y=float(dis*num_y//2), z=0.8), 
                     orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
                 ),
-                info={'maxstep': maxstep, 'max_thrust': max_thrust, 'hist_frame': hist_frame}
+                info={'veh':'blueboat', 'maxstep': maxstep, 'max_thrust': max_thrust, 'hist_frame': hist_frame}
             )
             for i in range(num_envs-num_x*num_y+1)
         ])
@@ -91,12 +84,12 @@ class BlueBoat_V1(gym.Env, Node):
             'pos_acc': (self.info['hist_frame'], 3),
             'ang_vel': (self.info['hist_frame'], 3),
         }
-        self.action_space = gym.space.Box(low=-1.0, high=1.0, shape=(7, ), dtype=np.float, seed=seed)
-        self.observation_space = gym.space.Dict({
-            'ang': gym.space.Box(low=-1.0, high=1.0, shape=self.__obs_shape['ang'], dtype=np.float32, seed=seed),
-            'cmd_vel': gym.space.Box(low=-1.0, high=1.0, shape=self.__obs_shape['cmd_vel'], dtype=np.float32, seed=seed),
-            'pos_acc': gym.space.Box(low=-1.0, high=1.0, shape=self.__obs_shape['pos_acc'], dtype=np.float32, seed=seed),
-            'ang_vel': gym.space.Box(low=-1.0, high=1.0, shape=self.__obs_shape['ang_vel'], dtype=np.float32, seed=seed),
+        self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=(7, ), dtype=np.float32, seed=seed)
+        self.observation_space = gym.spaces.Dict({
+            'ang': gym.spaces.Box(low=-1.0, high=1.0, shape=self.__obs_shape['ang'], dtype=np.float32, seed=seed),
+            'cmd_vel': gym.spaces.Box(low=-1.0, high=1.0, shape=self.__obs_shape['cmd_vel'], dtype=np.float32, seed=seed),
+            'pos_acc': gym.spaces.Box(low=-1.0, high=1.0, shape=self.__obs_shape['pos_acc'], dtype=np.float32, seed=seed),
+            'ang_vel': gym.spaces.Box(low=-1.0, high=1.0, shape=self.__obs_shape['ang_vel'], dtype=np.float32, seed=seed),
         })
         #############################################
         self.__unpause()
