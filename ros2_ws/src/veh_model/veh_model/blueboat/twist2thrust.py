@@ -18,13 +18,13 @@ class ThrustCalculatorNode(Node):
         # Subscriber to cmd_vel
         self.subscription = self.create_subscription(
             TwistStamped,
-            f'/{name}/{name}_thrust_calculator/cmd_vel',
+            f'/model/{name}/thrust_calculator/cmd_vel',
             self.cmd_vel_callback,
             10)
         
         # Publishers for port and starboard motor thrusts
-        self.port_thrust_publisher = self.create_publisher(Float64, f'/model/{name}/joint/motor_port_joint/cmd_thrust', 10)
-        self.stbd_thrust_publisher = self.create_publisher(Float64, f'/model/{name}/joint/motor_stbd_joint/cmd_thrust', 10)
+        self.port_thrust_publisher = self.create_publisher(Float64, f'/model/{name}/joint/motor_port_joint/cmd_thrust', 1)
+        self.stbd_thrust_publisher = self.create_publisher(Float64, f'/model/{name}/joint/motor_stbd_joint/cmd_thrust', 1)
 
     def cmd_vel_callback(self, msg):
         # Get the linear and angular velocity from the cmd_vel message

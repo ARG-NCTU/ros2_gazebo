@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>gz_entity_manager</name>
+  <version>0.0.1</version>
+  <description>The gz_entity_manager package</description>
+  <maintainer email="user@domain.com">user</maintainer>
+  <license>Apache License 2.0</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>ignition-transport11</depend>
+  <depend>ignition-msgs8</depend>
+  <depend>ignition-math6</depend>
+</package>

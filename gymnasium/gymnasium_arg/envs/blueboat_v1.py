@@ -21,8 +21,12 @@ class BlueBoat_V1(gym.Env, Node):
     def __init__(self, 
                  render_mode: Optional[str] = None,
                  veh='blueboat', 
-                 world='waves', 
+                 world='waves',
                  num_envs=1,
+                 headless=False,
+                 maxstep=4096, 
+                 max_thrust=10.0,
+                 hist_frame=5,
                  seed=0
                  ):
         self.info = {
@@ -30,13 +34,24 @@ class BlueBoat_V1(gym.Env, Node):
             'veh': veh,
             'world': world,
             'num_envs': num_envs,
-            'hist_frame': 5,
+            'hist_frame': hist_frame,
+            'maxstep': maxstep,
+            'max_thrust': max_thrust,
+            'headless': headless,
         }
-        super().__init__(self.info['node_name'])
+        
+        rclpy.init()
+        Node.__init__(self, self.info['node_name'])
         ################ ROS2 params ################
-        self.cli = {
-            'gz_control': self.create_client(ControlWorld, f'/world/{world}/control'),
-        }
+        self.bridge = []
+        # if not headless:
+        #     self.bridge.append(
+        #         subprocess.Popen([
+        #             "gz", "sim", "-v4 -g"
+        #         ])
+        #     )
+        self.gz_world = self.create_client(ControlWorld, f'/world/{world}/control')
+        
         self.__pause()
         ################ blueboats   ################
         self.veh = []
@@ -49,9 +64,10 @@ class BlueBoat_V1(gym.Env, Node):
                 name=f'{veh}{i*num_x+j}', 
                 path='~/ros2_gazebo/Gazebo/models/blueboat/model.sdf', 
                 pose=Pose(
-                    position=Point(x=i*dis-dis*num_x//2, y=j*dis-dis*num_y//2, z=0.8), 
+                    position=Point(x=float(i*dis-dis*num_x//2), y=float(j*dis-dis*num_y//2), z=0.8),
                     orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
-                )
+                ),
+                info={'maxstep': maxstep, 'max_thrust': max_thrust, 'hist_frame': hist_frame}
             )
             for i in range(num_x) for j in range(num_y)])
         self.veh.extend([
@@ -60,9 +76,10 @@ class BlueBoat_V1(gym.Env, Node):
                 name=f'{veh}{i+num_y*num_x}',
                 path='~/ros2_gazebo/Gazebo/models/blueboat/model.sdf',
                 pose=Pose(
-                    position=Point(x=i*dis+dis*num_x//2, y=dis*num_y//2, z=0.8), 
+                    position=Point(x=float(i*dis+dis*num_x//2), y=float(dis*num_y//2), z=0.8), 
                     orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
-                )
+                ),
+                info={'maxstep': maxstep, 'max_thrust': max_thrust, 'hist_frame': hist_frame}
             )
             for i in range(num_envs-num_x*num_y+1)
         ])
@@ -87,14 +104,15 @@ class BlueBoat_V1(gym.Env, Node):
     
     def reset(self, seed=None, options=None):
         self.__pause()
-        while not self.cli['gz_control'].wait_for_service(timeout_sec=1.0):
-            self.get_logger().info(f'Waiting for GZ world: {self.info['world']} control service...')
+        while not self.gz_world.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info(f"Waiting for GZ world: {self.info['world']} control service...")
+
         req = ControlWorld.Request()
         req.world_control.reset.all = True
-        future = self.cli['gz_control'].call_async(req)
+        future = self.gz_world.call_async(req)
         rclpy.spin_until_future_complete(self, future)
         if future.result() is None:
-            self.get_logger().error(f'GZ world: {self.info['world']} failed to reset')
+            self.get_logger().error(f"GZ world: {self.info['world']} failed to reset")
         for i in range(self.info['num_envs']):
             self.reset_idx(i)
         self.__unpause()
@@ -173,11 +191,11 @@ class BlueBoat_V1(gym.Env, Node):
     ########################################## private funcs ####################################
 
     def __pause(self):
-        while not self.cli['gz_control'].wait_for_service(timeout_sec=1.0):
+        while not self.gz_world.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('Waiting for GZ world control service...')
         req = ControlWorld.Request()
         req.world_control.pause = True
-        future = self.cli['gz_control'].call_async(req)
+        future = self.gz_world.call_async(req)
         rclpy.spin_until_future_complete(self, future)
         if future.result() is not None:
             self.get_logger().info('GZ world paused')
@@ -185,11 +203,11 @@ class BlueBoat_V1(gym.Env, Node):
             self.get_logger().error('Failed to pause GZ world')
 
     def __unpause(self):
-        while not self.cli['gz_control'].wait_for_service(timeout_sec=1.0):
+        while not self.gz_world.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('Waiting for GZ world control service...')
         req = ControlWorld.Request()
         req.world_control.pause = False
-        future = self.cli['gz_control'].call_async(req)
+        future = self.gz_world.call_async(req)
         rclpy.spin_until_future_complete(self, future)
         if future.result() is not None:
             self.get_logger().info('GZ world unpaused')
