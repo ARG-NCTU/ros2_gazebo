@@ -101,8 +101,11 @@ def launch_setup(context, *args, **kwargs):
     rviz = Node(
         package="rviz2",
         executable="rviz2",
-        arguments=[f"{pkg_project_gazebo}/rviz/{veh}.rviz"],
+        arguments=["-d", f"{pkg_project_gazebo}/rviz/{veh}.rviz"],
         condition=IfCondition(LaunchConfiguration('rviz')),
+        output="screen",
+        remappings=(('/tf', 'tf'), ('/tf_static', 'tf_static')),
+        namespace=veh,
     )
 
     # Return all the launch actions
@@ -131,7 +134,7 @@ def generate_launch_description():
             'veh', default_value='blueboat', description='Vehicle model to load'
         ),
         DeclareLaunchArgument(
-            'world', default_value='blueboat_waves', description='World to launch'
+            'world', default_value='waves', description='World to launch'
         ),
         DeclareLaunchArgument(
             'task', default_value='train', description='Purpose of Gazebo simulation'
