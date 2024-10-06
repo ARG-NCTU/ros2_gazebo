@@ -84,6 +84,8 @@ private:
       if (result && rep.data())
       {
         RCLCPP_INFO(this->get_logger(), "Requested creation of entity.");
+        RCLCPP_INFO(this->get_logger(), "Entity successfully created. Scheduling node shutdown...");
+        schedule_shutdown();  // Schedule the shutdown
       }
       else
       {
@@ -95,6 +97,19 @@ private:
       RCLCPP_ERROR(this->get_logger(), "Request to create entity from service [%s] timed out.", service.c_str());
     }
   }
+
+  void schedule_shutdown()
+  {
+    // Schedule a timer to shut down after 1 second
+    shutdown_timer_ = this->create_wall_timer(
+      std::chrono::seconds(1),
+      []() {
+        RCLCPP_INFO(rclcpp::get_logger("spawn_entity"), "Shutting down the node...");
+        rclcpp::shutdown();
+      });
+  }
+
+  rclcpp::TimerBase::SharedPtr shutdown_timer_;
 };
 
 int main(int argc, char **argv)
@@ -102,6 +117,5 @@ int main(int argc, char **argv)
   rclcpp::init(argc, argv);
   auto node = std::make_shared<SpawnEntityNode>();
   rclcpp::spin(node);
-  rclcpp::shutdown();
   return 0;
 }
