@@ -1,4 +1,4 @@
-import os, subprocess
+import os, subprocess, shutil
 import rclpy
 from scipy.spatial.transform import Rotation as R
 from rclpy.node import Node
@@ -6,43 +6,7 @@ from geometry_msgs.msg import TwistStamped, Pose, Twist, Point, Quaternion
 from ros_gz_interfaces.srv import DeleteEntity, SpawnEntity
 from std_msgs.msg import Float32, Float64
 import numpy as np
-import yaml
 import xml.etree.ElementTree as ET
-import argparse
-
-# def parse_sdf_to_yaml(sdf_file, world, entity_name, pose: Pose):
-#     try:
-#         x = pose.position.x
-#         y = pose.position.y
-#         z = pose.position.z
-#         quaternion = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
-#         rotation = R.from_quat(quaternion)
-#         r = rotation.as_euler('xyz')
-#         roll = r[0]
-#         pitch = r[1]
-#         yaw = r[2]
-#         sdf_string = "\n".join([line.strip() for line in sdf_file.splitlines() if line.strip()])
-#         # Create dictionary for YAML structure
-#         yaml_dict = {
-#             "spawn_entity_node": {
-#                 "ros_parameters": {
-#                     "world": world,
-#                     "entity_name": entity_name,
-#                     "sdf_string": sdf_string,
-#                     "x": x,
-#                     "y": y,
-#                     "z": z,
-#                     "roll": roll,
-#                     "pitch": pitch,
-#                     "yaw": yaw
-#                 }
-#             }
-#         }
-#         # Generate YAML string
-#         yaml_string = yaml.dump(yaml_dict, default_flow_style=False)
-#         return yaml_string
-#     except Exception as e:
-#         return f"Error: {str(e)}"
 
 
 class GZ_MODEL(Node):
@@ -59,36 +23,41 @@ class GZ_MODEL(Node):
         self.world = world
         self.model_path = path
         self.init_pose = init_pose
+        self.orig_name = orig_name
         self.pub = {}
         self.sub = {}
         self.obs = {}
         self.bridge = []
-        self.robot_desc = None
         self.model_path = os.path.expanduser(self.model_path)
-        with open(self.model_path, "r") as infp:
-            self.robot_desc = infp.read()
-            self.robot_desc = self.robot_desc.replace(
-                f"models://{orig_name}",
-                f"models://{self.name}"
-            )
-            self.robot_desc = self.robot_desc.replace(" ", "").replace("\n", "")
-        
+        self.__modify_and_copy(f'/tmp/{self.name}', self.model_path)
+        self.info['model_path'] = f'/tmp/{self.name}/model.sdf'
+
     def move_pose(self, pose: Pose):
         pass
 
     def setup(self):
+        self.get_logger().info(f'GZ model: {self.name} setting up')
         quaternion = [self.init_pose.orientation.x, self.init_pose.orientation.y, self.init_pose.orientation.z, self.init_pose.orientation.w]
         rotation = R.from_quat(quaternion)
         r = rotation.as_euler('xyz')
-        cli = subprocess.Popen([
-            "ros2", "run", "gz_entity_manager", "spawn_entity", "--ros-args",
-            f"-p world:={self.world}", f"-p entity_name:={self.name}", 
-            f"-p sdf_string:=<sdf version='1.7'><model name='my_robot'><pose>0 0 0 0 0 0</pose><link name='chassis'><visual name='chassis_visual'><geometry><box><size>1 1 1</size></box></geometry><material><ambient>0.5 0.5 0.5 1</ambient><diffuse>0.7 0.7 0.7 1</diffuse></material></visual><collision name='chassis_collision'><geometry><box><size>1 1 1</size></box></geometry></collision></link></model></sdf>",
-            f"-p x:={self.init_pose.position.x}", f"-p y:={self.init_pose.position.y}", f"-p z:={self.init_pose.position.z}",
-            f"-p roll:={r[0]}", f"-p pitch:={r[1]}", f"-p yaw:={r[2]}",
-        ])
-        self.get_logger().info(f'GZ model: {self.name} setting up')
-        cli.wait()
+        
+        command = [
+            'ros2', 'run', 'gz_entity_manager', 'spawn_entity',
+            '--ros-args',
+            '-p', f'world:={self.world}',
+            '-p', f"file_path:={self.info['model_path']}",
+            '-p', f'entity_name:={self.name}',
+            '-p', f'x:={self.init_pose.position.x}',
+            '-p', f'y:={self.init_pose.position.y}',
+            '-p', f'z:={self.init_pose.position.z}',
+            '-p', f'roll:={r[0]}',
+            '-p', f'pitch:={r[1]}',
+            '-p', f'yaw:={r[2]}'
+        ]
+        cli = subprocess.Popen(command)
+        print("Subprocess is still running...")
+        while cli.poll() is None:
+            pass
         cli.kill()
         self.get_logger().info(f'GZ model: {self.name} loaded')
 
@@ -98,7 +67,8 @@ class GZ_MODEL(Node):
             f"-p world:={self.world}", f"-p entity_name:={self.name}"
         ])
         self.get_logger().info(f'GZ model: {self.name} deleting')
-        cli.wait()
+        while cli.poll() is None:
+            pass
         cli.kill()
         self.get_logger().info(f'GZ model: {self.name} deleted')
 
@@ -114,7 +84,45 @@ class GZ_MODEL(Node):
         self.get_logger().info(f'GZ model: {self.name} closed')  # Corrected: self.logger -> self.get_logger()
         self.destroy_node()
     ############################# private funcs #############################
-    
+    def __modify_and_copy(self, dir_path, model_dir_path):
+        if os.path.exists(dir_path):
+            print(f"Destination folder '{dir_path}' exists. Removing it...")
+            shutil.rmtree(dir_path)
+
+        print(f"Copying '{model_dir_path}' to '{dir_path}'...")
+        shutil.copytree(model_dir_path, dir_path)
+
+        for root, dirs, files in os.walk(dir_path):
+            for file in files:
+                if file == 'model.sdf':
+                    file_path = os.path.join(root, file)
+                    self.__modify_model_sdf(dir_path, file_path)
+        
+
+    def __modify_model_sdf(self, dir_path, file_path):
+        print(f"Modifying '{file_path}'...")
+        # Read the file content
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        # Replace the text
+        content = content.replace(
+            f'models://{self.orig_name}',
+            f'{dir_path}'
+        ).replace(
+            f'model/{self.orig_name}',
+            f'model/{self.name}'
+        ).replace(
+            f'<namespace>{self.orig_name}',
+            f'<namespace>{self.name}'
+        ).replace(
+            f'<enable>{self.orig_name}',
+            f'<enable>{self.name}'
+        )
+        # Write back the modified content
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+
 class BlueBoat_GZ_MODEL(GZ_MODEL):
 
         

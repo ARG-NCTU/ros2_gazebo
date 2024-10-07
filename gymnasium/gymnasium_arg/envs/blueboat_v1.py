@@ -47,15 +47,15 @@ class BlueBoat_V1(gym.Env, Node):
         
         self.__pause()
         ################ blueboats   ################
-        self.veh = []
+        self.vehs = []
         num_x = int(num_envs//np.sqrt(num_envs))
         num_y = num_envs//num_x
         dis = 5
-        self.veh.extend([
+        self.vehs.extend([
             BlueBoat_GZ_MODEL(
                 world=world, 
                 name=f'{veh}{i*num_x+j}', 
-                path='~/ros2_gazebo/Gazebo/models/blueboat/model.sdf', 
+                path='/home/arg/ros2_gazebo/Gazebo/models/blueboat', 
                 pose=Pose(
                     position=Point(x=float(i*dis-dis*num_x//2), y=float(j*dis-dis*num_y//2), z=0.8),
                     orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
@@ -63,11 +63,11 @@ class BlueBoat_V1(gym.Env, Node):
                 info={'veh':'blueboat', 'maxstep': maxstep, 'max_thrust': max_thrust, 'hist_frame': hist_frame}
             )
             for i in range(num_x) for j in range(num_y)])
-        self.veh.extend([
+        self.vehs.extend([
             BlueBoat_GZ_MODEL(
                 world=world,
                 name=f'{veh}{i+num_y*num_x}',
-                path='~/ros2_gazebo/Gazebo/models/blueboat/model.sdf',
+                path='/home/arg/ros2_gazebo/Gazebo/models/blueboat',
                 pose=Pose(
                     position=Point(x=float(i*dis+dis*num_x//2), y=float(dis*num_y//2), z=0.8), 
                     orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
@@ -132,23 +132,23 @@ class BlueBoat_V1(gym.Env, Node):
         return state['obs'], state['reward'], state['termination'], state['truncation'], self.info
 
     def reset_idx(self, idx):
-        self.veh[idx].reset()
+        self.vehs[idx].reset()
         return
 
     def step_idx(self, action, idx):
-        self.veh[idx].step_cnt += 1
-        self.veh[idx].pub['cmd_vel'].publish(action)
-        if self.veh[idx].step_cnt >= self.info['maxstep']:
-            self.veh[idx].obs['truncation'] = True
+        self.vehs[idx].step_cnt += 1
+        self.vehs[idx].pub['cmd_vel'].publish(action)
+        if self.vehs[idx].step_cnt >= self.info['maxstep']:
+            self.vehs[idx].obs['truncation'] = True
 
     def close(self):
-        for veh in self.veh:
+        for veh in self.vehs:
             veh.close()
         self.destroy_node()
 
     def get_observation(self):
         obs = {}
-        for veh in self.veh:
+        for veh in self.vehs:
             pose = veh.obs['pose']
             twist = veh.obs['twist']
             ang = np.array(pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w)
@@ -171,13 +171,13 @@ class BlueBoat_V1(gym.Env, Node):
     
     def get_termination(self):
         termination = []
-        for veh in self.veh:
+        for veh in self.vehs:
             termination.append(veh.obs['termination'])
         return np.array(termination)
     
     def get_truncation(self):
         truncation = []
-        for veh in self.veh:
+        for veh in self.vehs:
             truncation.append(veh.obs['truncation'])
         return np.array(truncation)
 
