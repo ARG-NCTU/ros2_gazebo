@@ -6,6 +6,7 @@
 #include <gz/transport/Node.hh>
 #include <gz/math/Quaternion.hh>
 #include <gz/math/Pose3.hh>
+#include <fstream>
 #include <sstream>
 #include <string>
 
@@ -17,6 +18,7 @@ public:
     this->declare_parameter<std::string>("world", "");
     this->declare_parameter<std::string>("sdf_string", "");
     this->declare_parameter<std::string>("entity_name", "");
+    this->declare_parameter<std::string>("file_path", "");  // New file_path parameter
     this->declare_parameter<double>("x", 0.0);
     this->declare_parameter<double>("y", 0.0);
     this->declare_parameter<double>("z", 0.0);
@@ -42,8 +44,35 @@ private:
     std::string service{"/world/" + world_name + "/create"};
 
     gz::msgs::EntityFactory req;
+
     std::string sdf_string;
+    std::string file_path;
     this->get_parameter("sdf_string", sdf_string);
+    this->get_parameter("file_path", file_path);  // Get file_path parameter
+
+    // Check if file_path is provided
+    if (!file_path.empty())
+    {
+      std::ifstream file(file_path);
+      if (file.is_open())
+      {
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        sdf_string = buffer.str();
+        file.close();
+        RCLCPP_INFO(this->get_logger(), "SDF loaded from file: %s", file_path.c_str());
+      }
+      else
+      {
+        RCLCPP_ERROR(this->get_logger(), "Unable to open file: %s", file_path.c_str());
+        return;
+      }
+    }
+    else
+    {
+      RCLCPP_INFO(this->get_logger(), "Using provided SDF string.");
+    }
+
     req.set_sdf(sdf_string);
 
     std::string entity_name;
