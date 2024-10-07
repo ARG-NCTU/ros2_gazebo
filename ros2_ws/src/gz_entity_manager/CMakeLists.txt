@@ -46,9 +46,19 @@ ament_target_dependencies(delete_entity
   gz-math7
 )
 
+add_executable(move_entity src/move_entity.cpp)
+ament_target_dependencies(move_entity
+  rclcpp
+  std_msgs
+  gz-transport12
+  gz-msgs9
+  gz-math7
+)
+
 install(TARGETS
   spawn_entity
   delete_entity
+  move_entity
   DESTINATION lib/${PROJECT_NAME}
 )
 

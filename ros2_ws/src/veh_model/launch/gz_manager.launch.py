@@ -39,7 +39,7 @@ def launch_setup(context, *args, **kwargs):
         output="both",
         parameters=[
             {"robot_description": robot_desc},
-            {"frame_prefix": ""},
+            {"frame_prefix": f""},
         ],
         remappings=[("/tf", "tf"), ("/tf_static", "tf_static")],
         namespace=veh,
