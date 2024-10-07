@@ -17,9 +17,11 @@ from gymnasium_arg.utils.gz_model import BlueBoat_GZ_MODEL
 
 class BlueBoat_V1(gym.Env, Node):
     
-
+    metadata = {
+                "render_modes": ["rgb_array", "human"],
+                }
+    
     def __init__(self, 
-                 render_mode: Optional[str] = None,
                  veh='blueboat', 
                  world='waves',
                  num_envs=1,

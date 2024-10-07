@@ -18,8 +18,9 @@ warnings.filterwarnings("ignore")
 # Set up task and environment
 # task = task_config()
 # task.headless = False
-num_envs = 10
-env = gym.make("gymnasium_arg:blueboat-v1", render_mode="rgb_array", num_envs=num_envs, world="waves", veh='blueboat')
+num_envs = 4
+env = gym.make("gymnasium_arg:blueboat-v1", num_envs=num_envs, world="waves", veh='blueboat')
+env.close()
 while True:
     pass
 # env.reset()
