@@ -1,5 +1,11 @@
-import os, subprocess, shutil
+import os, shutil, signal, asyncio
 import rclpy
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+import launch_ros.actions
+from launch import LaunchService
+import launch
+
 from scipy.spatial.transform import Rotation as R
 from rclpy.node import Node
 from geometry_msgs.msg import TwistStamped, Pose, Twist, Point, Quaternion
@@ -7,6 +13,7 @@ from ros_gz_interfaces.srv import DeleteEntity, SpawnEntity
 from std_msgs.msg import Float32, Float64
 import numpy as np
 import xml.etree.ElementTree as ET
+
 
 
 class GZ_MODEL(Node):
@@ -27,7 +34,6 @@ class GZ_MODEL(Node):
         self.pub = {}
         self.sub = {}
         self.obs = {}
-        self.bridge = []
         self.model_path = os.path.expanduser(self.model_path)
         self.__modify_and_copy(f'/tmp/{self.name}', self.model_path)
         self.info['model_path'] = f'/tmp/{self.name}/model.sdf'
@@ -40,36 +46,44 @@ class GZ_MODEL(Node):
         quaternion = [self.init_pose.orientation.x, self.init_pose.orientation.y, self.init_pose.orientation.z, self.init_pose.orientation.w]
         rotation = R.from_quat(quaternion)
         r = rotation.as_euler('xyz')
-        
-        command = [
-            'ros2', 'run', 'gz_entity_manager', 'spawn_entity',
-            '--ros-args',
-            '-p', f'world:={self.world}',
-            '-p', f"file_path:={self.info['model_path']}",
-            '-p', f'entity_name:={self.name}',
-            '-p', f'x:={self.init_pose.position.x}',
-            '-p', f'y:={self.init_pose.position.y}',
-            '-p', f'z:={self.init_pose.position.z}',
-            '-p', f'roll:={r[0]}',
-            '-p', f'pitch:={r[1]}',
-            '-p', f'yaw:={r[2]}'
-        ]
-        cli = subprocess.Popen(command)
-        print("Subprocess is still running...")
-        while cli.poll() is None:
-            pass
-        cli.kill()
+        spawn_entity_node = launch_ros.actions.Node(
+            package='gz_entity_manager',
+            executable='spawn_entity',
+            output='screen',
+            arguments=[
+                '--ros-args',
+                '-p', f'world:={self.world}',
+                '-p', f"file_path:={self.info['model_path']}",
+                '-p', f'entity_name:={self.name}',
+                '-p', f'x:={self.init_pose.position.x}',
+                '-p', f'y:={self.init_pose.position.y}',
+                '-p', f'z:={self.init_pose.position.z}',
+                '-p', f'roll:={r[0]}',
+                '-p', f'pitch:={r[1]}',
+                '-p', f'yaw:={r[2]}'
+            ],
+        )
+        ld = launch.LaunchDescription([spawn_entity_node])
+        launch_service = launch.LaunchService()
+        launch_service.include_launch_description(ld)
+        launch_service.run()
         self.get_logger().info(f'GZ model: {self.name} loaded')
 
     def delete_entity(self):
-        cli = subprocess.Popen([
-            "ros2", "run", "gz_entity_manager", "delete_entity",
-            f"-p world:={self.world}", f"-p entity_name:={self.name}"
-        ])
-        self.get_logger().info(f'GZ model: {self.name} deleting')
-        while cli.poll() is None:
-            pass
-        cli.kill()
+        delete_entity_node = launch_ros.actions.Node(
+            package='gz_entity_manager',
+            executable='delete_entity',
+            output='screen',
+            arguments=[
+                '--ros-args',
+                '-p', f'world:={self.world}',
+                '-p', f'entity_name:={self.name}',
+            ],
+        )
+        ld = launch.LaunchDescription([delete_entity_node])
+        launch_service = launch.LaunchService()
+        launch_service.include_launch_description(ld)
+        launch_service.run()
         self.get_logger().info(f'GZ model: {self.name} deleted')
 
     def reset(self):
@@ -79,8 +93,6 @@ class GZ_MODEL(Node):
 
     def close(self):
         self.delete_entity()
-        for b in self.bridge:
-            b.kill()
         self.get_logger().info(f'GZ model: {self.name} closed')  # Corrected: self.logger -> self.get_logger()
         self.destroy_node()
     ############################# private funcs #############################
@@ -139,21 +151,43 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
         self.gz_sub['termination'] = self.create_subscription(Float64, f"/world/empty/model/{name}/link/base_link/sensor/sensor_contact/contact", self.__termination_cb, 10)
         
         self.pub['cmd_vel'] = self.create_publisher(TwistStamped, f'/model/{name}/thrust_calculator/cmd_vel', 10)
-                            
-        self.bridge.append(
-            subprocess.Popen([
-                "ros2", "run", "ros_gz_bridge", "parameter_bridge",
-                f"/model/{name}/pose@geometry_msgs/msg/PoseStamped[gz.msgs.Pose",
-                f"/world/{world}/model/{name}/link/imu_link/sensor/imu_sensor/imu@sensor_msgs/msg/Imu[gz.msgs.IMU",
-                f"/model/{name}/joint/motor_port_joint/cmd_thrust@std_msgs/msg/Float64]gz.msgs.Double",
-                f"/model/{name}/joint/motor_stbd_joint/cmd_thrust@std_msgs/msg/Float64]gz.msgs.Double",
-            ])
-        )
-        self.bridge.append(
-            subprocess.Popen([
-                "ros2", "run", "veh_model", "bb_twist2thrust", name
-            ])
-        )
+
+
+        self.launch_service = LaunchService()
+
+        # Create the launch script nodes
+        launch_script = [
+            launch_ros.actions.Node(
+                package='ros_gz_bridge',
+                executable='parameter_bridge',
+                output='screen',
+                parameters=[],
+                arguments=[
+                    f"/model/{name}/pose@geometry_msgs/msg/PoseStamped[gz.msgs.Pose",
+                    f"/world/{world}/model/{name}/link/imu_link/sensor/imu_sensor/imu@sensor_msgs/msg/Imu[gz.msgs.IMU",
+                    f"/model/{name}/joint/motor_port_joint/cmd_thrust@std_msgs/msg/Float64]gz.msgs.Double",
+                    f"/model/{name}/joint/motor_stbd_joint/cmd_thrust@std_msgs/msg/Float64]gz.msgs.Double",
+                ],
+            ),
+            launch_ros.actions.Node(
+                package='veh_model',
+                executable='bb_twist2thrust',
+                output='screen',
+                parameters=[],
+                arguments=[
+                    name
+                ],
+            ),
+        ]
+
+        # Set up launch description and include it in the service
+        # Set up launch description and include it in the service
+        ld = launch.LaunchDescription(launch_script)
+        self.launch_service = LaunchService()
+        self.launch_service.include_launch_description(ld)
+
+        # Run the launch service in the main thread
+        self.launch_future = asyncio.ensure_future(self.launch_service.run_async())
 
         self.obs['pose'] = Pose()
         self.obs['twist'] = Twist()
@@ -184,7 +218,11 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
             self.obs['truncation'] = True
     
     def close(self):
+        self.get_logger().info("Closing the service...")
         super().close()
+        self.launch_service.shutdown()
+        self.launch_future.cancel()
+        self.get_logger().info("Service closed successfully.")
     
     ############################# private funcs #############################
     def __pose_cb(self, msg):

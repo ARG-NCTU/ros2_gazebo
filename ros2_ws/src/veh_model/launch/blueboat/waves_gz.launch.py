@@ -7,7 +7,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
 from launch.conditions import IfCondition
 import os
-
+import launch
 
 def launch_setup(context, *args, **kwargs):
     # Retrieve the values of the arguments at runtime
@@ -58,3 +58,12 @@ def generate_launch_description():
         ),
         OpaqueFunction(function=launch_setup)
     ])
+
+if __name__ == '__main__':
+    # Create the LaunchService and add the generated launch description
+    launch_service = launch.LaunchService()
+    ld = generate_launch_description()  # Correctly call the function to get the LaunchDescription
+    launch_service.include_launch_description(ld)
+    
+    # Run the launch service
+    launch_service.run()

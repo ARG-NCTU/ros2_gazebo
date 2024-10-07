@@ -6,6 +6,7 @@ from gymnasium.utils import seeding
 from typing import Optional
 import numpy as np
 
+import asyncio
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import TwistStamped, PoseStamped, Pose, Point, Quaternion
@@ -46,27 +47,26 @@ class BlueBoat_V1(gym.Env, Node):
         Node.__init__(self, self.info['node_name'])
         ################ ROS2 params ################
         self.gz_world = self.create_client(ControlWorld, f'/world/{world}/control')
-        
         self.__pause()
         ################ blueboats   ################
         self.vehs = []
-        num_x = int(num_envs//np.sqrt(num_envs))
+        num_x = int(np.sqrt(num_envs))
         num_y = num_envs//num_x
         dis = 5
-        self.vehs.extend([
-            BlueBoat_GZ_MODEL(
-                world=world, 
-                name=f'{veh}{i*num_x+j}', 
-                path='/home/arg/ros2_gazebo/Gazebo/models/blueboat', 
-                pose=Pose(
-                    position=Point(x=float(i*dis-dis*num_x//2), y=float(j*dis-dis*num_y//2), z=0.8),
-                    orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
-                ),
-                info={'veh':'blueboat', 'maxstep': maxstep, 'max_thrust': max_thrust, 'hist_frame': hist_frame}
-            )
-            for i in range(num_x) for j in range(num_y)])
-        self.vehs.extend([
-            BlueBoat_GZ_MODEL(
+        for i in range(num_x):
+            for j in range(num_y):
+                self.vehs.append(BlueBoat_GZ_MODEL(
+                    world=world, 
+                    name=f'{veh}{i*num_y+j}', 
+                    path='/home/arg/ros2_gazebo/Gazebo/models/blueboat', 
+                    pose=Pose(
+                        position=Point(x=float(i*dis-dis*num_x//2), y=float(j*dis-dis*num_y//2), z=0.8),
+                        orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+                    ),
+                    info={'veh':'blueboat', 'maxstep': maxstep, 'max_thrust': max_thrust, 'hist_frame': hist_frame}
+                ))
+        for i in range(num_envs-num_x*num_y):
+            self.vehs.append(BlueBoat_GZ_MODEL(
                 world=world,
                 name=f'{veh}{i+num_y*num_x}',
                 path='/home/arg/ros2_gazebo/Gazebo/models/blueboat',
@@ -76,8 +76,7 @@ class BlueBoat_V1(gym.Env, Node):
                 ),
                 info={'veh':'blueboat', 'maxstep': maxstep, 'max_thrust': max_thrust, 'hist_frame': hist_frame}
             )
-            for i in range(num_envs-num_x*num_y+1)
-        ])
+        )
         ################ GYM params #################
         self.info['maxstep'] = 4096
         self.__obs_shape = {
@@ -153,9 +152,9 @@ class BlueBoat_V1(gym.Env, Node):
         for veh in self.vehs:
             pose = veh.obs['pose']
             twist = veh.obs['twist']
-            ang = np.array(pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w)
-            pos_acc = np.array(twist.linear.x, twist.linear.y, twist.linear.z)
-            ang_vel = np.array(twist.angular.x, twist.angular.y, twist.angular.z)
+            ang = np.array([pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w])
+            pos_acc = np.array([twist.linear.x, twist.linear.y, twist.linear.z])
+            ang_vel = np.array([twist.angular.x, twist.angular.y, twist.angular.z])
         return obs
 
     def get_reward(self, actions):
