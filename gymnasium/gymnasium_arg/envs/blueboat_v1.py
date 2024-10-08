@@ -79,19 +79,20 @@ class BlueBoat_V1(gym.Env, Node):
         )
         ################ GYM params #################
         self.info['maxstep'] = 4096
-        self.__obs_shape = {
-            'ang': (self.info['hist_frame'], 4),
-            'cmd_vel': (self.info['hist_frame'], 7),
-            'pos_acc': (self.info['hist_frame'], 3),
-            'ang_vel': (self.info['hist_frame'], 3),
-        }
+        # self.__obs_shape = {
+        #     'ang': (self.info['hist_frame'], 4),
+        #     'cmd_vel': (self.info['hist_frame'], 6),
+        #     'pos_acc': (self.info['hist_frame'], 3),
+        #     'ang_vel': (self.info['hist_frame'], 3),
+        # }
         self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=(7, ), dtype=np.float32, seed=seed)
-        self.observation_space = gym.spaces.Dict({
-            'ang': gym.spaces.Box(low=-1.0, high=1.0, shape=self.__obs_shape['ang'], dtype=np.float32, seed=seed),
-            'cmd_vel': gym.spaces.Box(low=-1.0, high=1.0, shape=self.__obs_shape['cmd_vel'], dtype=np.float32, seed=seed),
-            'pos_acc': gym.spaces.Box(low=-1.0, high=1.0, shape=self.__obs_shape['pos_acc'], dtype=np.float32, seed=seed),
-            'ang_vel': gym.spaces.Box(low=-1.0, high=1.0, shape=self.__obs_shape['ang_vel'], dtype=np.float32, seed=seed),
-        })
+        self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(num_envs, 19), dtype=np.float32, seed=seed)
+        # self.observation_space = gym.spaces.Dict({
+        #     'cmd_vel': gym.spaces.Box(low=-1.0, high=1.0, shape=self.__obs_shape['cmd_vel'], dtype=np.float32, seed=seed),
+        #     'ang': gym.spaces.Box(low=-np.inf, high=np.inf, shape=self.__obs_shape['ang'], dtype=np.float32, seed=seed),
+        #     'pos_acc': gym.spaces.Box(low=-np.inf, high=np.inf, shape=self.__obs_shape['pos_acc'], dtype=np.float32, seed=seed),
+        #     'ang_vel': gym.spaces.Box(low=-np.inf, high=np.inf, shape=self.__obs_shape['ang_vel'], dtype=np.float32, seed=seed),
+        # })
         #############################################
         self.__unpause()
         self.get_observation()
@@ -113,22 +114,31 @@ class BlueBoat_V1(gym.Env, Node):
         return self.get_observation()
 
     def step(self, actions):
-        for i, action in enumerate(actions):
-            cmd_vel = PoseStamped()
-            cmd_vel.header.stamp = self.get_clock().now().to_msg()
-            cmd_vel.pose.position.x = action[0]
-            cmd_vel.pose.position.y = action[1]
-            cmd_vel.pose.position.z = action[2]
-            cmd_vel.pose.orientation.x = action[3]
-            cmd_vel.pose.orientation.y = action[4]
-            cmd_vel.pose.orientation.z = action[5]
-            cmd_vel.pose.orientation.w = action[6]
-            self.step_idx(cmd_vel, i)
+        self.actions = actions
+        cmd_vel = TwistStamped()
+        cmd_vel.header.stamp = self.get_clock().now().to_msg()
+        if actions.shape[0] != self.info['num_envs']:
+            cmd_vel.twist.linear.x = actions[0]
+            cmd_vel.twist.linear.y = actions[1]
+            cmd_vel.twist.linear.z = actions[2]
+            cmd_vel.twist.angular.x = actions[3]
+            cmd_vel.twist.angular.y = actions[4]
+            cmd_vel.twist.angular.z = actions[5]
+            self.vehs[0].step(cmd_vel)
+        else:
+            for i, action in enumerate(actions):
+                cmd_vel.twist.linear.x = action[0]
+                cmd_vel.twist.linear.y = action[1]
+                cmd_vel.twist.linear.z = action[2]
+                cmd_vel.twist.angular.x = action[3]
+                cmd_vel.twist.angular.y = action[4]
+                cmd_vel.twist.angular.z = action[5]
+                self.vehs[i].step(cmd_vel)
         state = {
-            'obs': self.get_observation(),
-            'reward': self.get_reward(actions),
-            'termination': self.get_termination(),
-            'truncation': self.get_truncation(),
+            'obs': self.get_observation(), # 2D array
+            'reward': self.get_reward(actions), # 1D array
+            'termination': self.get_termination(), # 1D array
+            'truncation': self.get_truncation(), # 1D array
         }
         return state['obs'], state['reward'], state['termination'], state['truncation'], self.info
 
@@ -136,11 +146,8 @@ class BlueBoat_V1(gym.Env, Node):
         self.vehs[idx].reset()
         return
 
-    def step_idx(self, action, idx):
-        self.vehs[idx].step_cnt += 1
-        self.vehs[idx].pub['cmd_vel'].publish(action)
-        if self.vehs[idx].step_cnt >= self.info['maxstep']:
-            self.vehs[idx].obs['truncation'] = True
+    # def step_idx(self, action, idx):
+    #     self.vehs[idx].pub['cmd_vel'].publish(action)
 
     def close(self):
         for veh in self.vehs:
@@ -148,13 +155,21 @@ class BlueBoat_V1(gym.Env, Node):
         self.destroy_node()
 
     def get_observation(self):
-        obs = {}
+        obs = np.array([])
         for veh in self.vehs:
             pose = veh.obs['pose']
             twist = veh.obs['twist']
-            ang = np.array([pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w])
-            pos_acc = np.array([twist.linear.x, twist.linear.y, twist.linear.z])
-            ang_vel = np.array([twist.angular.x, twist.angular.y, twist.angular.z])
+            veh_obs = np.array([veh.obs['action'].linear.x, veh.obs['action'].linear.y, veh.obs['action'].linear.z, 
+                                veh.obs['action'].angular.x, veh.obs['action'].angular.y, veh.obs['action'].angular.z])
+            veh_obs = np.hstack((veh_obs, np.array([pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w])))
+            veh_obs = np.hstack((veh_obs, np.array([twist.linear.x, twist.linear.y, twist.linear.z])))
+            veh_obs = np.hstack((veh_obs, np.array([twist.angular.x, twist.angular.y, twist.angular.z])))
+            # cmd_vel = np.array([veh.obs['action'].linear.x, veh.obs['action'].linear.y, veh.obs['action'].linear.z, 
+            #                     veh.obs['action'].angular.x, veh.obs['action'].angular.y, veh.obs['action'].angular.z])
+            # ang = np.array([pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w])
+            # pos_acc = np.array([twist.linear.x, twist.linear.y, twist.linear.z])
+            # ang_vel = np.array([twist.angular.x, twist.angular.y, twist.angular.z])
+            obs = np.vstack((obs, veh_obs)) if obs.size else np.hstack((obs, veh_obs))
         return obs
 
     def get_reward(self, actions):

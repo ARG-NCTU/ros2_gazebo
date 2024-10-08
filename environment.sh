@@ -9,3 +9,4 @@ if [[ ":$GZ_SIM_RESOURCE_PATH:" != *":$HOME/$REPO_NAME/Gazebo/models:"* ]]; then
     export GZ_SIM_RESOURCE_PATH="$HOME/$REPO_NAME/Gazebo/models:$HOME/$REPO_NAME/Gazebo/worlds:$GZ_SIM_RESOURCE_PATH"
 fi
 source ./ros2_ws/install/setup.bash
+export ROS_DOMAIN_ID=1

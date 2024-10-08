@@ -9,6 +9,7 @@ import launch
 from scipy.spatial.transform import Rotation as R
 from rclpy.node import Node
 from geometry_msgs.msg import TwistStamped, Pose, Twist, Point, Quaternion
+from sensor_msgs.msg import Imu
 from ros_gz_interfaces.srv import DeleteEntity, SpawnEntity
 from std_msgs.msg import Float32, Float64
 import numpy as np
@@ -140,19 +141,19 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
         
     def __init__(self, world, name, path, pose: Pose, info={'veh':'blueboat', 'maxstep': 4096, 'max_thrust': 10.0, 'hist_frame': 5}):
         super().__init__(orig_name=info['veh'], name=name, path=path, world=world, init_pose=pose)
-        self.max_thrust = 10.0
         self.gz_sub = {}  # Added: Initialize gz_sub dictionary
         self.gz_sub['pose'] = None  # Corrected: Initialize gz_sub['pose']
         self.gz_sub['imu'] = None  # Corrected: Initialize gz_sub['imu']
         self.gz_sub['termination'] = None  # Corrected: Initialize gz_sub['termination']
 
-        self.gz_sub['pose'] = self.create_subscription(Pose, f"/model/{name}/pose", self.__pose_cb, 10)  # Corrected: Subscriber to create_subscription
-        self.gz_sub['imu'] = self.create_subscription(Float64, f"/model/{name}/link/imu_link/sensor/imu_sensor/imu", self.__imu_cb, 10)
-        self.gz_sub['termination'] = self.create_subscription(Float64, f"/world/empty/model/{name}/link/base_link/sensor/sensor_contact/contact", self.__termination_cb, 10)
+        self.gz_sub['pose'] = self.create_subscription(Pose, f"/model/{name}/pose", self.__pose_cb, 1)  # Corrected: Subscriber to create_subscription
+        self.gz_sub['imu'] = self.create_subscription(Imu, f"/world/{world}/model/{name}/link/imu_link/sensor/imu_sensor/imu", self.__imu_cb, 1)
+        self.gz_sub['termination'] = self.create_subscription(Float64, f"/world/{world}/model/{name}/link/base_link/sensor/sensor_contact/contact", self.__termination_cb, 1)
         
-        self.pub['cmd_vel'] = self.create_publisher(TwistStamped, f'/model/{name}/thrust_calculator/cmd_vel', 10)
+        self.pub['cmd_vel'] = self.create_publisher(TwistStamped, f'/model/{name}/thrust_calculator/cmd_vel', 1)
 
 
+        self.obs['action'] = Twist()
         self.launch_service = LaunchService()
 
         # Create the launch script nodes
@@ -173,10 +174,7 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
                 package='veh_model',
                 executable='bb_twist2thrust',
                 output='screen',
-                parameters=[],
-                arguments=[
-                    name
-                ],
+                parameters=[{'name': name, 'max_thrust': info["max_thrust"]},],
             ),
         ]
 
@@ -199,7 +197,7 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
         self.info['hist_frame'] = info['hist_frame']
         self.info['step_cnt'] = 0
 
-        self.hist_obs = []
+        self.hist_obs = np.array([])
         self.setup()
         
     def get_observation(self):
@@ -207,11 +205,13 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
     
     def reset(self):
         super().reset()
+        self.obs['action'] = Twist()
         self.obs['termination'] = False
         self.obs['truncation'] = False
         self.info['step_cnt'] = 0
 
-    def step(self, action: Twist):
+    def step(self, action: TwistStamped):
+        self.obs['action'] = action.twist
         self.info['step_cnt'] += 1
         self.pub['cmd_vel'].publish(action)
         if self.info['step_cnt'] >= self.info['maxstep']:  # Corrected: self.step_cnt -> self.info['step_cnt']
