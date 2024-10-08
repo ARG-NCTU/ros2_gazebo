@@ -234,7 +234,6 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
             msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w,
             msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z,
             msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z])
-        print(f"{self.info['name']} imu: {imu}")
         if self.obs['imu'].shape != (self.info['hist_frame'], 10):
             if self.obs['imu'].shape == (0,):
                 self.obs['imu'] = imu

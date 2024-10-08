@@ -8,7 +8,7 @@ import numpy as np
 
 import asyncio
 import rclpy
-from rclpy.executors import Executor
+from rclpy.executors import Executor, MultiThreadedExecutor
 from rclpy.node import Node
 from geometry_msgs.msg import TwistStamped, PoseStamped, Pose, Point, Quaternion
 from sensor_msgs.msg import Imu
@@ -45,8 +45,9 @@ class BlueBoat_V1(gym.Env, Node):
         }
         
         rclpy.init()
+        self.excutor = MultiThreadedExecutor()
         Node.__init__(self, self.info['node_name'])
-        
+        self.excutor.add_node(self)
         ################ ROS2 params ################
         
         self.gz_world = self.create_client(ControlWorld, f'/world/{world}/control')
@@ -69,6 +70,7 @@ class BlueBoat_V1(gym.Env, Node):
                     info={'veh':'blueboat', 'maxstep': maxstep, 'max_thrust': max_thrust, 'hist_frame': hist_frame}
                     )
                 )
+                self.excutor.add_node(self.vehs[-1])
         for i in range(num_envs-num_x*num_y):
             self.vehs.append(BlueBoat_GZ_MODEL(
                 world=world,
@@ -81,6 +83,11 @@ class BlueBoat_V1(gym.Env, Node):
                 info={'veh':'blueboat', 'maxstep': maxstep, 'max_thrust': max_thrust, 'hist_frame': hist_frame}
                 )
             )
+            self.excutor.add_node(self.vehs[-1])
+        
+        self.excutor_thread = threading.Thread(target=self.excutor.spin)
+        self.excutor_thread.start()
+
         ################ GYM params #################
         self.info['maxstep'] = 4096
         self.__obs_shape = (
@@ -151,14 +158,16 @@ class BlueBoat_V1(gym.Env, Node):
     def close(self):
         for veh in self.vehs:
             veh.close()
-        self.destory()
-        rclpy.destroy_node()
+        # self.excutor_thread.join()
+        self.excutor.shutdown()
+        # self.destory()
+        # rclpy.destroy_node()
 
     def get_observation(self, actions):
         obs = np.array([])
         for i, veh in enumerate(self.vehs):
             veh_obs = veh.get_observation()
-            veh_obs = np.hstack((veh_obs['action'], veh_obs['imu'], veh_obs['twist']))
+            veh_obs = np.hstack((veh_obs['action'], veh_obs['imu']))
             obs = np.vstack((obs, np.hstack((actions[i], veh_obs.flatten())))) if obs.size else np.hstack((actions[i], veh_obs.flatten()))
         return obs
 
