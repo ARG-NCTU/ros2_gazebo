@@ -1,4 +1,4 @@
-import time, math, random, sys, os, queue, subprocess
+import time, math, random, sys, os, queue, subprocess, threading
 from matplotlib import pyplot as plt
 import gymnasium as gym
 from gymnasium import error, spaces, utils
@@ -8,6 +8,7 @@ import numpy as np
 
 import asyncio
 import rclpy
+from rclpy.executors import Executor
 from rclpy.node import Node
 from geometry_msgs.msg import TwistStamped, PoseStamped, Pose, Point, Quaternion
 from sensor_msgs.msg import Imu
@@ -45,7 +46,9 @@ class BlueBoat_V1(gym.Env, Node):
         
         rclpy.init()
         Node.__init__(self, self.info['node_name'])
+        
         ################ ROS2 params ################
+        
         self.gz_world = self.create_client(ControlWorld, f'/world/{world}/control')
         self.__pause()
         ################ blueboats   ################
@@ -64,7 +67,8 @@ class BlueBoat_V1(gym.Env, Node):
                         orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
                     ),
                     info={'veh':'blueboat', 'maxstep': maxstep, 'max_thrust': max_thrust, 'hist_frame': hist_frame}
-                ))
+                    )
+                )
         for i in range(num_envs-num_x*num_y):
             self.vehs.append(BlueBoat_GZ_MODEL(
                 world=world,
@@ -75,27 +79,22 @@ class BlueBoat_V1(gym.Env, Node):
                     orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
                 ),
                 info={'veh':'blueboat', 'maxstep': maxstep, 'max_thrust': max_thrust, 'hist_frame': hist_frame}
+                )
             )
-        )
         ################ GYM params #################
         self.info['maxstep'] = 4096
-        # self.__obs_shape = {
-        #     'ang': (self.info['hist_frame'], 4),
-        #     'cmd_vel': (self.info['hist_frame'], 6),
-        #     'pos_acc': (self.info['hist_frame'], 3),
-        #     'ang_vel': (self.info['hist_frame'], 3),
-        # }
-        self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=(7, ), dtype=np.float32, seed=seed)
-        self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(num_envs, 19), dtype=np.float32, seed=seed)
-        # self.observation_space = gym.spaces.Dict({
-        #     'cmd_vel': gym.spaces.Box(low=-1.0, high=1.0, shape=self.__obs_shape['cmd_vel'], dtype=np.float32, seed=seed),
-        #     'ang': gym.spaces.Box(low=-np.inf, high=np.inf, shape=self.__obs_shape['ang'], dtype=np.float32, seed=seed),
-        #     'pos_acc': gym.spaces.Box(low=-np.inf, high=np.inf, shape=self.__obs_shape['pos_acc'], dtype=np.float32, seed=seed),
-        #     'ang_vel': gym.spaces.Box(low=-np.inf, high=np.inf, shape=self.__obs_shape['ang_vel'], dtype=np.float32, seed=seed),
-        # })
+        self.__obs_shape = (
+            6 +                         # action: cmd_vel
+            self.info['hist_frame']*6 + # hist action: hist cmd_vel
+            self.info['hist_frame']*10  # hist imu (ori + ang_vel + pos_acc)
+        )
+
+        self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=(6, ), dtype=np.float32, seed=seed)
+        self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.__obs_shape, ), dtype=np.float32, seed=seed)
+        
         #############################################
         self.__unpause()
-        self.get_observation()
+        # self.get_observation(np.zeros((self.info['num_envs'], 6)))
     
     def reset(self, seed=None, options=None):
         self.__pause()
@@ -110,13 +109,22 @@ class BlueBoat_V1(gym.Env, Node):
             self.get_logger().error(f"GZ world: {self.info['world']} failed to reset")
         for i in range(self.info['num_envs']):
             self.reset_idx(i)
+        self.actions = np.zeros((self.info['num_envs'], 6))
         self.__unpause()
-        return self.get_observation()
+        return self.get_observation(np.zeros((self.info['num_envs'], 6)))
 
     def step(self, actions):
         self.actions = actions
+        state = {
+            'obs': self.get_observation(actions), # 2D array
+            'reward': self.get_reward(actions), # 1D array
+            'termination': self.get_termination(), # 1D array
+            'truncation': self.get_truncation(), # 1D array
+        }
+
         cmd_vel = TwistStamped()
         cmd_vel.header.stamp = self.get_clock().now().to_msg()
+
         if actions.shape[0] != self.info['num_envs']:
             cmd_vel.twist.linear.x = actions[0]
             cmd_vel.twist.linear.y = actions[1]
@@ -134,42 +142,24 @@ class BlueBoat_V1(gym.Env, Node):
                 cmd_vel.twist.angular.y = action[4]
                 cmd_vel.twist.angular.z = action[5]
                 self.vehs[i].step(cmd_vel)
-        state = {
-            'obs': self.get_observation(), # 2D array
-            'reward': self.get_reward(actions), # 1D array
-            'termination': self.get_termination(), # 1D array
-            'truncation': self.get_truncation(), # 1D array
-        }
         return state['obs'], state['reward'], state['termination'], state['truncation'], self.info
 
     def reset_idx(self, idx):
         self.vehs[idx].reset()
         return
 
-    # def step_idx(self, action, idx):
-    #     self.vehs[idx].pub['cmd_vel'].publish(action)
-
     def close(self):
         for veh in self.vehs:
             veh.close()
-        self.destroy_node()
+        self.destory()
+        rclpy.destroy_node()
 
-    def get_observation(self):
+    def get_observation(self, actions):
         obs = np.array([])
-        for veh in self.vehs:
-            pose = veh.obs['pose']
-            twist = veh.obs['twist']
-            veh_obs = np.array([veh.obs['action'].linear.x, veh.obs['action'].linear.y, veh.obs['action'].linear.z, 
-                                veh.obs['action'].angular.x, veh.obs['action'].angular.y, veh.obs['action'].angular.z])
-            veh_obs = np.hstack((veh_obs, np.array([pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w])))
-            veh_obs = np.hstack((veh_obs, np.array([twist.linear.x, twist.linear.y, twist.linear.z])))
-            veh_obs = np.hstack((veh_obs, np.array([twist.angular.x, twist.angular.y, twist.angular.z])))
-            # cmd_vel = np.array([veh.obs['action'].linear.x, veh.obs['action'].linear.y, veh.obs['action'].linear.z, 
-            #                     veh.obs['action'].angular.x, veh.obs['action'].angular.y, veh.obs['action'].angular.z])
-            # ang = np.array([pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w])
-            # pos_acc = np.array([twist.linear.x, twist.linear.y, twist.linear.z])
-            # ang_vel = np.array([twist.angular.x, twist.angular.y, twist.angular.z])
-            obs = np.vstack((obs, veh_obs)) if obs.size else np.hstack((obs, veh_obs))
+        for i, veh in enumerate(self.vehs):
+            veh_obs = veh.get_observation()
+            veh_obs = np.hstack((veh_obs['action'], veh_obs['imu'], veh_obs['twist']))
+            obs = np.vstack((obs, np.hstack((actions[i], veh_obs.flatten())))) if obs.size else np.hstack((actions[i], veh_obs.flatten()))
         return obs
 
     def get_reward(self, actions):
@@ -222,3 +212,43 @@ class BlueBoat_V1(gym.Env, Node):
             self.get_logger().info('GZ world unpaused')
         else:
             self.get_logger().error('Failed to unpause GZ world')
+
+    # def __unpause(self):
+    #     while not self.gz_world.wait_for_service(timeout_sec=1.0):
+    #         self.get_logger().info('Waiting for GZ world control service...')
+    #     req = ControlWorld.Request()
+    #     req.world_control.pause = False
+    #     future = self.gz_world.call_async(req)
+    #     # Remove the blocking call
+    #     # rclpy.spin_until_future_complete(self, future)
+    #     # Optionally, add a callback to handle the response
+    #     future.add_done_callback(self.__unpause_callback)
+
+    # def __unpause_callback(self, future):
+    #     try:
+    #         response = future.result()
+    #         if response is not None:
+    #             self.get_logger().info('GZ world unpaused')
+    #         else:
+    #             self.get_logger().error('Failed to unpause GZ world')
+    #     except Exception as e:
+    #         self.get_logger().error(f'Exception in unpausing GZ world: {e}')
+
+
+    # def __unpause(self):
+    #     while not self.gz_world.wait_for_service(timeout_sec=1.0):
+    #         self.get_logger().info('Waiting for GZ world control service...')
+    #     req = ControlWorld.Request()
+    #     req.world_control.pause = False
+    #     future = self.gz_world.call_async(req)
+    #     while not future.done():
+    #         time.sleep(0.1)  # Adjust the sleep duration as needed
+    #     # Now handle the result
+    #     try:
+    #         response = future.result()
+    #         if response is not None:
+    #             self.get_logger().info('GZ world unpaused')
+    #         else:
+    #             self.get_logger().error('Failed to unpause GZ world')
+    #     except Exception as e:
+    #         self.get_logger().error(f'Exception in unpausing GZ world: {e}')
