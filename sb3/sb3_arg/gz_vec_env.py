@@ -15,12 +15,12 @@ class GzVecWnv(VecEnv):
         self.num_envs = env.sim_env.num_envs  # Number of agents in the environment
         self.observation_space = env.observation_space
         self.action_space = env.action_space
-        self.dones = torch.zeros(self.num_envs, dtype=torch.bool)
+        # self.dones = torch.zeros(self.num_envs, dtype=torch.bool)
         self.device = env.device  # Assume all environments share the same device
 
         super().__init__(self.num_envs, self.observation_space, self.action_space)
 
-    def step_async(self, actions: torch.Tensor):
+    def step_async(self, actions: np.ndarray):
         """
         Step asynchronously with tensor actions.
         :param actions: Torch tensor actions to take for each environment (agent).
@@ -32,26 +32,26 @@ class GzVecWnv(VecEnv):
         Wait for all agents in the environment to finish their step and return the results as tensors.
         """
         # Perform the step with actions for all agents
-        if isinstance(self.actions, np.ndarray):
-            self.actions = torch.as_tensor(self.actions, device=self.device)
-        self.env.sim_env.step(actions=self.actions)
+        # if isinstance(self.actions, np.ndarray):
+            # self.actions = torch.as_tensor(self.actions, device=self.device)
+        state = self.env.step(actions=self.actions)
 
-        # Get observations, rewards, terminations (done), and infos
-        dones = torch.logical_or(self.env.task_obs['terminations'], self.env.task_obs['truncations'])
+        # Get observations, rewards, terminations & truncation (done), and infos
+        dones = (state[2] or state[3])
         for i in range(len(dones)):
             if dones[i]:
                 self.env.reset_idx(i)
-        observations = self.env.task_obs['observations']
-        rewards = self.env.task_obs['rewards']
-        infos = {}
+        observations = state[0]
+        rewards = state[1]
+        infos = state[4]
 
         # Convert observations to a dictionary format if observation space is a Dict
-        if isinstance(observations, torch.Tensor):
-            observations = observations.cpu().numpy()
-        observations = {'observations': observations}
+        # if isinstance(observations, torch.Tensor):
+        #     observations = observations.cpu().numpy()
+        # observations = {'observations': observations}
 
-        rewards = rewards.cpu().numpy() if isinstance(rewards, torch.Tensor) else rewards
-        dones = dones.cpu().numpy() if isinstance(dones, torch.Tensor) else dones
+        # rewards = rewards.cpu().numpy() if isinstance(rewards, torch.Tensor) else rewards
+        # dones = dones.cpu().numpy() if isinstance(dones, torch.Tensor) else dones
 
         return observations, rewards, dones, infos
 
@@ -60,12 +60,12 @@ class GzVecWnv(VecEnv):
         """
         Reset the environment for all agents and return the initial observations as tensors.
         """
-        self.dones = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        # self.dones = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         obs = self.env.reset()
-        for key, value in obs.items():
-            if isinstance(value, torch.Tensor):
-                print("Value is already a tensor")
-                obs[key] = value.cpu().numpy()
+        # for key, value in obs.items():
+        #     if isinstance(value, torch.Tensor):
+        #         print("Value is already a tensor")
+        #         obs[key] = value.cpu().numpy()
             # obs[key] = torch.as_tensor(value, device=self.device)
         return obs
 
