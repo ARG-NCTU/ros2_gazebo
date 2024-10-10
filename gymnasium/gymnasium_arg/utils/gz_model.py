@@ -8,6 +8,7 @@ import launch
 
 from scipy.spatial.transform import Rotation as R
 from rclpy.node import Node
+from rosgraph_msgs.msg import Clock
 from geometry_msgs.msg import TwistStamped, Pose, Twist, Point, Quaternion, PoseStamped
 from sensor_msgs.msg import Imu
 from ros_gz_interfaces.srv import DeleteEntity, SpawnEntity
@@ -148,7 +149,7 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
         self.info['step_cnt'] = 0
         self.sub['imu'] = self.create_subscription(Imu, f"/world/{world}/model/{name}/link/imu_link/sensor/imu_sensor/imu", self.__imu_cb, 10)
         self.sub['termination'] = self.create_subscription(Float64, f"/world/{world}/model/{name}/link/base_link/sensor/sensor_contact/contact", self.__termination_cb, 1)
-        
+        # self.sub['clock'] = self.create_subscription(Clock, '/clock', self.__clock_cb, 10)
         self.pub['cmd_vel'] = self.create_publisher(TwistStamped, f'/model/{name}/thrust_calculator/cmd_vel', 1)
 
         self.launch_service = LaunchService()
@@ -245,3 +246,6 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
 
     def __termination_cb(self, msg):
         self.obs['termination'] = True if msg is not None else False
+
+    def __clock_cb(self, msg):
+        self.get_logger().info(f"Clock callback triggered. Current time: {msg.clock.sec + msg.clock.nanosec * 1e-9}")

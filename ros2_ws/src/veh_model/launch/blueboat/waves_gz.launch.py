@@ -34,7 +34,8 @@ def launch_setup(context, *args, **kwargs):
         package='ros_gz_bridge',
         executable='parameter_bridge',
         arguments=[
-            f'/world/{world}/control@ros_gz_interfaces/srv/ControlWorld@ignition.msgs.WorldControl@ignition.msgs.Boolean', 
+            f'/world/{world}/control@ros_gz_interfaces/srv/ControlWorld@ignition.msgs.WorldControl@ignition.msgs.Boolean',
+            f'/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
         ],
         output='screen',
     )
