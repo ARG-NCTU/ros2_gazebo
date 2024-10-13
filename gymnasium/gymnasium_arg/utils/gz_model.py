@@ -1,4 +1,4 @@
-import os, shutil, signal, asyncio
+import os, shutil, signal, asyncio, time
 import rclpy
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
@@ -70,6 +70,7 @@ class GZ_MODEL(Node):
         launch_service = launch.LaunchService()
         launch_service.include_launch_description(ld)
         launch_service.run()
+        time.sleep(0.1)
         self.get_logger().info(f'GZ model: {self.name} loaded')
 
     def delete_entity(self):
@@ -87,6 +88,7 @@ class GZ_MODEL(Node):
         launch_service = launch.LaunchService()
         launch_service.include_launch_description(ld)
         launch_service.run()
+        time.sleep(0.1)
         self.get_logger().info(f'GZ model: {self.name} deleted')
 
     def reset(self):

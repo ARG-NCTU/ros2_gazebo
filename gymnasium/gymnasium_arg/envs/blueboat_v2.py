@@ -46,7 +46,7 @@ class BlueBoat_V2(gym.Env):
                  render_mode=Optional[str],
                  maxstep=4096, 
                  max_thrust=10.0,
-                 hist_frame=5,
+                 hist_frame=10,
                  seed=0,
                  hz=50,
                  ):
@@ -139,7 +139,8 @@ class BlueBoat_V2(gym.Env):
             self.node.get_logger().error(f"GZ world: {self.info['world']} failed to reset")
         else:
             self.node.get_logger().info(f"GZ world: {self.info['world']} reset successfully")
-
+        time.sleep(0.1)
+        
         self.veh.reset()
         self.info['last_clock_time'] = None
         self.action = np.zeros(self.__action_shape)
@@ -203,22 +204,7 @@ class BlueBoat_V2(gym.Env):
         '''
             apply reward function here
         '''
-        # imu = self.veh.get_observation()['imu'][0]
-        # orientation_quat = imu[0:4]  # x, y, z, w (quaternion)
-        # linear_accel = imu[7:10]     # linear acceleration x, y, z
-        # imu_direction = quaternion_to_direction(orientation_quat)
-        # cmd_direction = np.array([self.cmd_vel['forward'][0], self.cmd_vel['forward'][1], self.cmd_vel['forward'][0]])
-        # cmd_speed = np.linalg.norm(cmd_direction)  # Magnitude of the velocity vector
-
-        # # Normalize both directions to get unit vectors for comparison
-        # imu_direction_normalized = imu_direction / np.linalg.norm(imu_direction)
-        # cmd_direction_normalized = cmd_direction / np.linalg.norm(cmd_direction)
-
-        # # Calculate the alignment (dot product between unit vectors)
-        # alignment = np.dot(imu_direction_normalized, cmd_direction_normalized)
-
-        # # Reward is proportional to the alignment and speed
-        # rew = alignment * cmd_speed
+        rew += action[0]*self.cmd_vel['forward'][0] * 10
 
         return rew/(self.info['max_rew']*self.info['maxstep'])
     
@@ -244,6 +230,7 @@ class BlueBoat_V2(gym.Env):
             self.node.get_logger().info('GZ world paused')
         else:
             self.node.get_logger().error('Failed to pause GZ world')
+        time.sleep(0.1)
 
     def __unpause(self):
         while not self.gz_world.wait_for_service(timeout_sec=1.0):
@@ -259,6 +246,8 @@ class BlueBoat_V2(gym.Env):
             self.node.get_logger().info('GZ world unpaused')
         else:
             self.node.get_logger().error('Failed to unpause GZ world')
+        time.sleep(0.1)
+
 
     def __clock_sync(self):
         if self.info['last_clock_time'] is None:
