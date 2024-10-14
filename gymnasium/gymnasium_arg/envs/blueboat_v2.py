@@ -73,6 +73,7 @@ class BlueBoat_V2(gym.Env):
         self.node = rclpy.create_node(self.info['node_name'])
         self.gz_world = self.node.create_client(ControlWorld, f'/world/{world}/control')
         self.clock = GzClock()
+        self.__reset_world()
         self.__pause()
         ################ blueboats   ################
         self.veh = BlueBoat_GZ_MODEL(
@@ -123,24 +124,6 @@ class BlueBoat_V2(gym.Env):
     
     def reset(self, seed=None, options=None):
         self.__pause()
-        while not self.gz_world.wait_for_service(timeout_sec=1.0):
-            self.node.get_logger().info(f"Waiting for GZ world: {self.info['world']} control service...")
-
-        req = ControlWorld.Request()
-        req.world_control.reset.all = True
-        future = self.gz_world.call_async(req)
-        
-        # Wait for the future to complete without blocking the executor
-        while not future.done():
-            rclpy.spin_once(self.node, timeout_sec=0)  # Non-blocking spin
-            time.sleep(0.01)  # Sleep briefly to prevent busy waiting
-
-        if future.result() is None:
-            self.node.get_logger().error(f"GZ world: {self.info['world']} failed to reset")
-        else:
-            self.node.get_logger().info(f"GZ world: {self.info['world']} reset successfully")
-        time.sleep(0.1)
-        
         self.veh.reset()
         self.info['last_clock_time'] = None
         self.action = np.zeros(self.__action_shape)
@@ -246,6 +229,25 @@ class BlueBoat_V2(gym.Env):
             self.node.get_logger().info('GZ world unpaused')
         else:
             self.node.get_logger().error('Failed to unpause GZ world')
+        time.sleep(0.1)
+    
+    def __reset_world(self):
+        while not self.gz_world.wait_for_service(timeout_sec=1.0):
+            self.node.get_logger().info(f"Waiting for GZ world: {self.info['world']} control service...")
+
+        req = ControlWorld.Request()
+        req.world_control.reset.all = True
+        future = self.gz_world.call_async(req)
+        
+        # Wait for the future to complete without blocking the executor
+        while not future.done():
+            rclpy.spin_once(self.node, timeout_sec=0)  # Non-blocking spin
+            time.sleep(0.01)  # Sleep briefly to prevent busy waiting
+
+        if future.result() is None:
+            self.node.get_logger().error(f"GZ world: {self.info['world']} failed to reset")
+        else:
+            self.node.get_logger().info(f"GZ world: {self.info['world']} reset successfully")
         time.sleep(0.1)
 
 
