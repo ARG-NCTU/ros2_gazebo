@@ -1,4 +1,4 @@
-import os, shutil, signal, asyncio
+import os, shutil, signal, asyncio, time
 import rclpy
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
@@ -41,9 +41,6 @@ class GZ_MODEL(Node):
         self.__modify_and_copy(f'/tmp/{self.name}', self.model_path)
         self.info['model_path'] = f'/tmp/{self.name}/model.sdf'
 
-    def move_pose(self, pose: Pose):
-        pass
-
     def setup(self):
         self.get_logger().info(f'GZ model: {self.name} setting up')
         quaternion = [self.init_pose.orientation.x, self.init_pose.orientation.y, self.init_pose.orientation.z, self.init_pose.orientation.w]
@@ -70,7 +67,37 @@ class GZ_MODEL(Node):
         launch_service = launch.LaunchService()
         launch_service.include_launch_description(ld)
         launch_service.run()
+        time.sleep(0.1)
+        launch_service.shutdown()
         self.get_logger().info(f'GZ model: {self.name} loaded')
+    
+    def move_pose(self, pose: Pose):
+        quaternion = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
+        rotation = R.from_quat(quaternion)
+        r = rotation.as_euler('xyz')
+        move_entity_node = launch_ros.actions.Node(
+            package='gz_entity_manager',
+            executable='move_entity',
+            output='screen',
+            arguments=[
+                '--ros-args',
+                '-p', f'world:={self.world}',
+                '-p', f'entity_name:={self.name}',
+                '-p', f'x:={pose.position.x}',
+                '-p', f'y:={pose.position.y}',
+                '-p', f'z:={pose.position.z}',
+                '-p', f'roll:={r[0]}',
+                '-p', f'pitch:={r[1]}',
+                '-p', f'yaw:={r[2]}'
+            ],
+        )
+        ld = launch.LaunchDescription([move_entity_node])
+        launch_service = launch.LaunchService()
+        launch_service.include_launch_description(ld)
+        launch_service.run()
+        time.sleep(0.1)
+        launch_service.shutdown()
+        self.get_logger().info(f'GZ model: {self.name} moved')
 
     def delete_entity(self):
         delete_entity_node = launch_ros.actions.Node(
@@ -87,11 +114,14 @@ class GZ_MODEL(Node):
         launch_service = launch.LaunchService()
         launch_service.include_launch_description(ld)
         launch_service.run()
+        time.sleep(0.1)
+        launch_service.shutdown()
         self.get_logger().info(f'GZ model: {self.name} deleted')
 
     def reset(self):
-        self.delete_entity()
-        self.setup()
+        self.move_pose(self.init_pose)
+        # self.delete_entity()
+        # self.setup()
         self.get_logger().info(f'GZ model: {self.name} reset')  # Corrected: reseted -> reset
 
     def close(self):

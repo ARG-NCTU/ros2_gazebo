@@ -27,54 +27,55 @@ public:
     this->get_parameter("roll", roll);
     this->get_parameter("pitch", pitch);
     this->get_parameter("yaw", yaw);
+    
     RCLCPP_INFO(this->get_logger(), "Moving entity...");
+    
+    // Request entity move
+    this->move_entity();
+
+    // Shutdown the node after 1 second to ensure the message is processed
+    timer_ = this->create_wall_timer(
+      std::chrono::seconds(1),
+      [this]() {
+        RCLCPP_INFO(this->get_logger(), "Shutting down...");
+        rclcpp::shutdown();
+      });
+  }
+
+private:
+  void move_entity()
+  {
     gz::transport::Node node;
     gz::msgs::Pose req;
     req.set_name(entity_name);
     gz::math::Pose3d pose(x, y, z, roll, pitch, yaw);
-    gz::msgs::Set( &req, pose);
-    // gz::msgs::Set(req.mutable_orientation(), pose.Rot());
-    // *(req.mutable_position()) = pose.Pos();
-    // *(req.mutable_orientation()) = pose.Rot();
+    gz::msgs::Set(&req, pose);
+
     std::string service{"/world/" + world_name + "/set_pose"};
 
     gz::msgs::Boolean rep;
     bool result;
     unsigned int timeout = 5000;
-    bool executed = node.Request(service , req, timeout, rep, result);
+    bool executed = node.Request(service, req, timeout, rep, result);
 
     if(executed){
       if(result && rep.data()){
-        // std::cout << result << std::endl << rep.data() << std::endl;
-        RCLCPP_INFO(this->get_logger(), "Request to move entity sent successfully.");
-        schedule_shutdown();
+        RCLCPP_INFO(this->get_logger(), "Entity moved successfully.");
       }else{
-        RCLCPP_ERROR(this->get_logger(), "Failed to send request.");
+        RCLCPP_ERROR(this->get_logger(), "Failed to move entity.");
       }
     }else{
       RCLCPP_ERROR(this->get_logger(), "Request to move entity from service [%s] timed out.", service.c_str());
     }
   }
-private:
+
   std::string world_name;
   std::string entity_name;
   double x, y, z, roll, pitch, yaw;
-  rclcpp::TimerBase::SharedPtr shutdown_timer_;
-
-  void schedule_shutdown()
-  {
-    // Schedule a timer to shut down after 1 second
-    shutdown_timer_ = this->create_wall_timer(
-      std::chrono::seconds(1),
-      []() {
-        RCLCPP_INFO(rclcpp::get_logger("move_entity"), "Shutting down the node...");
-        rclcpp::shutdown();
-      });
-  }
 
 };
 
-int main(int argc, char ** argv)
+int main(int argc, char **argv)
 {
   rclcpp::init(argc, argv);
   auto node = std::make_shared<MoveEntityNode>();
@@ -82,3 +83,14 @@ int main(int argc, char ** argv)
   rclcpp::shutdown();
   return 0;
 }
+
+// [this](const gz::msgs::Boolean &rep, const bool result) {
+//         if (result && rep.data())
+//         {
+//           RCLCPP_INFO(this->get_logger(), "Entity moved successfully.");
+//         }
+//         else
+//         {
+//           RCLCPP_ERROR(this->get_logger(), "Failed to move entity.");
+//         }
+//       }
