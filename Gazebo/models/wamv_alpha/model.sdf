@@ -1,0 +1,1087 @@
+<?xml version="1.0" ?>
+<!-- Basic WAM-V with gazebo plugins for dynamics -->
+<sdf version='1.6'>
+<model name="wamv_alpha">
+
+    <link name="base_link">
+        <visual name="base_visual">
+          <geometry>
+            <mesh>
+                <uri>models://wamv_alpha/meshes/WAM-V-Base/mesh/WAM-V-Base.stl</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <ambient>0.175 0.175 0.175 1.0</ambient>
+            <diffuse>0.175 0.175 0.175 1.0</diffuse>
+            <specular>0.0 0.0 0.0 1.0</specular>  <!-- Black specular -->
+            <shininess>50.0</shininess>
+        </material>
+        </visual>
+        <inertial>
+          <mass>180.0</mass>
+          <inertia>
+            <ixx>120.0</ixx>
+            <ixy>0.0</ixy>
+            <ixz>0.0</ixz>
+            <iyy>393.0</iyy>
+            <iyz>0.0</iyz>
+            <izz>446.0</izz>
+          </inertia>
+        </inertial>
+        <!-- Main float -->
+        <collision name="left_float">
+            <pose>-0.4 1.03 0.2 0 1.57 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>4</length>
+                    <radius>0.2</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        <collision name="left_mid_float">
+            <pose>1.85 1.03 0.3 0 1.38 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.5</length>
+                    <radius>0.17</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <collision name="left_front_float">
+            <pose>2.3 1.03 0.4 0 1.3 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.45</length>
+                    <radius>0.12</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <!-- Front beam -->
+        <collision name="front_left_beam_lower">
+            <pose>0.9 0.85 1 0.78 0 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.5</length>
+                    <radius>0.04</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <collision name="front_left_beam_upper">
+            <pose>0.9 0.6 1.18 1.35 0 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.2</length>
+                    <radius>0.04</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <!-- Mid beam -->
+        <collision name="mid_left_beam_lower">
+            <pose>-0.65 0.99 0.7 0.1 0.25 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.45</length>
+                    <radius>0.03</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <collision name="mid_left_beam_medium">
+            <pose>-0.57 0.87 1.05 0.75 0.25 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.32</length>
+                    <radius>0.03</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <collision name="mid_left_beam_upper">
+            <pose>-0.55 0.65 1.17 1.35 0.25 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.3</length>
+                    <radius>0.03</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <!-- Rear beam -->
+        <collision name="rear_left_beam_lower">
+            <pose>-0.74 1.03 0.7 0 -0.15 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.45</length>
+                    <radius>0.03</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <collision name="rear_left_beam_medium">
+            <pose>-0.79 0.91 1.05 0.75 -0.15 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.32</length>
+                    <radius>0.03</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <collision name="rear_left_beam_upper">
+            <pose>-0.81 0.67 1.18 1.45 -0.15 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.3</length>
+                    <radius>0.03</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <!-- Joint -->
+        <collision name="left_joint">
+            <pose>0.58 1.03 0.6 0 -0.6 0</pose>
+            <geometry>
+                <box>
+                    <size>0.65 0.2 0.1</size>
+                </box>
+            </geometry>
+        </collision>
+        
+        <!-- Main float -->
+        <collision name="right_float">
+            <pose>-0.4 -1.03 0.2 0 1.57 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>4</length>
+                    <radius>0.2</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <collision name="right_mid_float">
+            <pose>1.85 -1.03 0.3 0 1.38 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.5</length>
+                    <radius>0.17</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <collision name="right_front_float">
+            <pose>2.3 -1.03 0.4 0 1.3 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.45</length>
+                    <radius>0.12</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <!-- Front beam -->
+        <collision name="front_right_beam_lower">
+            <pose>0.9 -0.85 1 -0.78 0 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.5</length>
+                    <radius>0.04</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <collision name="front_right_beam_upper">
+            <pose>0.9 -0.6 1.18 -1.35 0 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.2</length>
+                    <radius>0.04</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <!-- Mid beam -->
+        <collision name="mid_right_beam_lower">
+            <pose>-0.65 -0.99 0.7 -0.1 0.25 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.45</length>
+                    <radius>0.03</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <collision name="mid_right_beam_medium">
+            <pose>-0.57 -0.87 1.05 -0.75 0.25 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.32</length>
+                    <radius>0.03</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <collision name="mid_right_beam_upper">
+            <pose>-0.55 -0.65 1.17 -1.35 0.25 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.3</length>
+                    <radius>0.03</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <!-- Rear beam -->
+        <collision name="rear_right_beam_lower">
+            <pose>-0.74 -1.03 0.7 0 -0.15 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.45</length>
+                    <radius>0.03</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <collision name="rear_right_beam_medium">
+            <pose>-0.79 -0.91 1.05 -0.75 -0.15 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.32</length>
+                    <radius>0.03</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <collision name="rear_right_beam_upper">
+            <pose>-0.81 -0.67 1.18 -1.45 -0.15 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.3</length>
+                    <radius>0.03</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        
+        <!-- Joint -->
+        <collision name="right_joint">
+            <pose>0.58 -1.03 0.6 0 -0.6 0</pose>
+            <geometry>
+                <box>
+                    <size>0.65 0.2 0.1</size>
+                </box>
+            </geometry>
+        </collision>
+        
+        <!-- Top base -->
+        <collision name="top_base">
+            <pose>0 -0 1.25 0 0 0</pose>
+            <geometry>
+                <box>
+                    <size>1.85 1 0.1</size>
+                </box>
+            </geometry>
+        </collision>    
+      </link>
+
+    <link name="cpu_cases_link">
+        <pose>-0.15 0 1.53 0 0 0</pose>
+        <visual name="cpu_cases_visual">
+            <pose>0.073 0 -1.53 0 0 0</pose>
+            <geometry>
+                <mesh>
+                    <uri>models://wamv_alpha/meshes/cpu_cases/mesh/cpu_cases.dae</uri>
+                </mesh>
+            </geometry>
+        </visual>
+        <collision name="cpu_case_1_collision">
+            <pose>0.185 0 0 0 0 0</pose>
+            <geometry>
+                <box>
+                    <size>0.595 0.83 0.47</size>
+                </box>
+            </geometry>
+        </collision>
+        <collision name="cpu_case_2_collision">
+            <pose>-0.3 0 -0.092 0 0 0</pose>
+            <geometry>
+                <box>
+                    <size>0.375 0.64 0.28</size>
+                </box>
+            </geometry>
+        </collision>
+        <inertial>
+            <mass>20</mass>
+            <inertia>
+                <ixx>1.51633333333333</ixx>
+                <ixy>0</ixy>
+                <ixz>0</ixz>
+                <iyy>1.93633333333333</iyy>
+                <iyz>0</iyz>
+                <izz>2.71633333333333</izz>
+            </inertia>
+        </inertial>
+    </link>
+
+    <joint name="chasis_cpu_cases_joint" type="fixed">
+        <pose>-0.15 0 1.53 0 0 0</pose>
+        <parent>base_link</parent>
+        <child>cpu_cases_link</child>
+    </joint>
+    
+    
+    <!-- GPS Sensor -->
+    <link name="gps_wamv_link">
+        <pose>-0.85 0 1.3 0 0 0</pose>
+        <visual name="gps_wamv_visual">
+        <geometry>
+            <mesh>
+            <uri>/models://wamv_alpha/meshes/gps/mesh/gps.dae</uri>
+            </mesh>
+        </geometry>
+        </visual>
+        <collision name="gps_wamv_collision_base">
+        <pose>0 0 0.025 0 0 0</pose>
+        <geometry>
+            <cylinder>
+            <length>0.05</length>
+            <radius>0.015</radius>
+            </cylinder>
+        </geometry>
+        </collision>
+        <collision name="gps_wamv_collision_antenna">
+        <pose>0 0 0.11 0 0 0</pose>
+        <geometry>
+            <cylinder>
+            <length>0.1</length>
+            <radius>0.15</radius>
+            </cylinder>
+        </geometry>
+        </collision>
+        <inertial>
+        <mass>1</mass>
+        <inertia>
+            <ixx>0.006458</ixx>
+            <ixy>0.0</ixy>
+            <ixz>0.0</ixz>
+            <iyy>0.006458</iyy>
+            <iyz>0.0</iyz>
+            <izz>0.01125</izz>
+        </inertia>
+        </inertial>
+    </link>
+    <!-- IMU Sensor -->
+    <link name="imu_wamv_link">
+        <pose>0.3 -0.2 1.3 0 0 0</pose>
+        <visual name="imu_wamv_visual">
+        <geometry>
+            <box>
+            <size>0.05 0.025 0.005</size>
+            </box>
+        </geometry>
+        <material>
+            <ambient>1.0 0.0 0.0 1.0</ambient>
+            <diffuse>1.0 0.0 0.0 1.0</diffuse>
+            <specular>1.0 0.0 0.0 1.0</specular>
+        </material>
+        </visual>
+        <inertial>
+            <mass>0.1</mass>
+            <inertia>
+                <ixx>0.0001</ixx>
+                <ixy>0.0</ixy>
+                <ixz>0.0</ixz>
+                <iyy>0.0001</iyy>
+                <iyz>0.0</iyz>
+                <izz>0.0001</izz>
+            </inertia>
+        </inertial>     
+    </link>
+    
+    <!-- Joint Definition -->
+    <joint name="imu_wamv_joint" type="fixed">
+        <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+            <effort>1000.0</effort>
+            <lower>0.0</lower>
+            <upper>0.0</upper>
+            <velocity>0.0</velocity>
+        </limit>
+        </axis>
+        <pose>0.3 -0.2 1.3 0 0 0</pose>
+        <parent>base_link</parent>
+        <child>imu_wamv_link</child>
+    </joint>
+
+    <!-- 3D LiDAR Sensor -->
+    <link name="lidar_wamv_link">
+        <pose>1.36 0.0 1.04 0 0 0</pose>
+        <visual name="lidar_wamv_visual">
+        <pose>0 0 -0.035 0 0 0</pose>
+        <geometry>
+            <mesh>
+            <uri>models://wamv_alpha/meshes/3d_lidar/mesh/3d_lidar.dae</uri>
+            </mesh>
+        </geometry>
+        </visual>
+        <collision name="lidar_wamv_collision">
+        <geometry>
+            <cylinder>
+            <length>0.075</length>
+            <radius>0.055</radius>
+            </cylinder>
+        </geometry>
+        </collision>
+        <inertial>
+        <mass>1</mass>
+        <inertia>
+            <ixx>0.00109375</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00109375</iyy>
+            <iyz>0</iyz>
+            <izz>0.00125</izz>
+        </inertia>
+        </inertial>
+    </link>
+    <!-- Joint Definition -->
+    <joint name="base_to_lidar_wamv_joint" type="fixed">
+        <pose>1.38 0.0 1.12325 0 0 0</pose>
+        <parent>base_link</parent>
+        <child>lidar_wamv_link</child>
+    </joint>
+    
+    <!-- Joint Definition -->
+    <joint name="gps_wamv_joint" type="fixed">
+        <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+            <effort>1000.0</effort>
+            <lower>0.0</lower>
+            <upper>0.0</upper>
+            <velocity>0.0</velocity>
+        </limit>
+        </axis>
+        <pose>-0.85 0 1.3 0 0 0</pose>
+        <parent>base_link</parent>
+        <child>gps_wamv_link</child>
+    </joint>
+    
+    <!-- GPS Link -->
+    <link name="gps_link">
+        <pose>0 0 0 0 0 0</pose>
+        <visual name="mavlink_wamv_visual">
+        <geometry>
+            <box>
+            <size>0.0005 0.00025 0.005</size>
+            </box>
+        </geometry>
+        </visual>
+        <inertial>
+            <mass>1.0</mass>
+            <inertia>
+                <ixx>0.01</ixx>
+                <ixy>0.0</ixy>
+                <ixz>0.0</ixz>
+                <iyy>0.01</iyy>
+                <iyz>0.0</iyz>
+                <izz>0.02</izz>
+            </inertia>
+        </inertial>
+    </link>
+    
+    <joint name="gps_joint" type="revolute">
+        <parent>base_link</parent>
+        <child>gps_link</child>
+        <axis>
+        <xyz>0 0 1</xyz>
+            <limit>
+                <effort>10</effort>
+                <lower>-3.141592653589793</lower>
+                <upper>3.141592653589793</upper>
+                <velocity>0.01</velocity>
+            </limit>
+        </axis>
+        <pose>0 0 0 0 0 0</pose>
+    </joint>
+      
+    <!-- left_engine_link -->
+    <link name="left_engine_link">
+        <!-- Visual element for the engine -->
+        <pose>-2.3 1.027135 0.318237 0 0 0</pose>
+        <visual name="left_engine_visual">
+          <geometry>
+            <mesh>
+              <uri>models://wamv_alpha/meshes/engine/mesh/engine.dae</uri>
+            </mesh>
+          </geometry>
+        </visual>
+        
+        <!-- Collision elements for the engine -->
+        <collision name="left_engine_vertical_axis_collision">
+          <pose>-0.16 0 -0.24 0 0 0</pose>  <!-- xyz and rpy combined into pose -->
+          <geometry>
+            <box>
+              <size>0.2 0.15 0.83</size>
+            </box>
+          </geometry>
+        </collision>
+        
+        <collision name="left_engine_rear_end_collision">
+          <pose>-0.34 0 0.12 0 0 0</pose>  <!-- xyz and rpy combined into pose -->
+          <geometry>
+            <box>
+              <size>0.12 0.15 0.12</size>
+            </box>
+          </geometry>
+        </collision>
+      
+        <!-- Inertial properties of the engine link -->
+        <inertial>
+          <mass>15</mass>
+          <inertia>
+            <ixx>0.889245</ixx>
+            <ixy>0.0</ixy>
+            <ixz>0.0</ixz>
+            <iyy>0.911125</iyy>
+            <iyz>0.0</iyz>
+            <izz>0.078125</izz>
+          </inertia>
+        </inertial>
+      </link>
+
+    <!-- Left Propeller Link -->
+    <link name="left_propeller_link">
+        <pose relative_to='left_engine_link'>-0.27 0 -0.51 0 0 0</pose>
+        <visual name="left_propeller_visual">
+        <geometry>
+            <mesh>
+            <uri>models://wamv_alpha/meshes/propeller/mesh/propeller.dae</uri>
+            </mesh>
+        </geometry>
+        </visual>
+        <collision name="left_propeller_collision">
+        <pose>-0.08 0 0 0 1.57 0</pose>
+        <geometry>
+            <cylinder>
+            <length>0.18</length>
+            <radius>0.24</radius>
+            </cylinder>
+        </geometry>
+        </collision>
+        <inertial>
+        <mass>0.5</mass>
+        <inertia>
+            <ixx>0.008545</ixx>
+            <ixy>0.0</ixy>
+            <ixz>0.0</ixz>
+            <iyy>0.008545</iyy>
+            <iyz>0.0</iyz>
+            <izz>0.0144</izz>
+        </inertia>
+        </inertial>
+    </link>
+  
+    <!-- Left Chasis to Engine Joint -->
+    <joint name="left_chasis_engine_joint" type="fixed">
+        <axis>
+        <xyz>0 0 1</xyz>
+        </axis>
+        <parent>base_link</parent>
+        <child>left_engine_link</child>
+    </joint>
+    
+    <!-- Left Engine to Propeller Joint -->
+    <joint name="left_engine_propeller_joint" type="revolute">
+        <axis>
+        <xyz>1 0 0</xyz>
+        <limit>
+            <effort>100</effort>
+            <velocity>100</velocity>
+        </limit>
+        </axis>
+        <parent>left_engine_link</parent>
+        <child>left_propeller_link</child>
+        <dynamics>
+            <damping>0.05</damping>
+            <friction>0.05</friction>
+        </dynamics>
+    </joint>
+    
+    <!-- Right Engine Link -->
+    <link name="right_engine_link">
+        <pose>-2.3 -1.027135 0.318237 0 0 0</pose>
+        <visual name="right_engine_visual">
+        <geometry>
+            <mesh>
+            <uri>models://wamv_alpha/meshes/engine/mesh/engine.dae</uri>
+            </mesh>
+        </geometry>
+        </visual>
+        <collision name="right_engine_vertical_axis_collision">
+        <pose>-0.16 0 -0.24 0 0 0</pose>
+        <geometry>
+            <box>
+            <size>0.2 0.15 0.83</size>
+            </box>
+        </geometry>
+        </collision>
+        <collision name="right_engine_rear_end_collision">
+        <pose>-0.34 0 0.12 0 0 0</pose>
+        <geometry>
+            <box>
+            <size>0.12 0.15 0.12</size>
+            </box>
+        </geometry>
+        </collision>
+        <inertial>
+        <mass>15</mass>
+        <inertia>
+            <ixx>0.889245</ixx>
+            <ixy>0.0</ixy>
+            <ixz>0.0</ixz>
+            <iyy>0.911125</iyy>
+            <iyz>0.0</iyz>
+            <izz>0.078125</izz>
+        </inertia>
+        </inertial>
+    </link>
+    
+    <!-- Right Propeller Link -->
+    <link name="right_propeller_link"> 
+        <pose relative_to='right_engine_link'>-0.27 0 -0.51 0 0 0</pose>
+        <visual name="right_propeller_visual">
+        <geometry>
+            <mesh>
+            <uri>models://wamv_alpha/meshes/propeller/mesh/propeller.dae</uri>
+            </mesh>
+        </geometry>
+        </visual>
+        <collision name="right_propeller_collision">
+        <pose>-0.08 0 0 0 1.57 0</pose>
+        <geometry>
+            <cylinder>
+            <length>0.18</length>
+            <radius>0.24</radius>
+            </cylinder>
+        </geometry>
+        </collision>
+        <inertial>
+        <mass>0.5</mass>
+        <inertia>
+            <ixx>0.008545</ixx>
+            <ixy>0.0</ixy>
+            <ixz>0.0</ixz>
+            <iyy>0.008545</iyy>
+            <iyz>0.0</iyz>
+            <izz>0.0144</izz>
+        </inertia>
+        </inertial>
+    </link>
+    
+    <!-- Right Chasis to Engine Joint -->
+    <joint name="right_chasis_engine_joint" type="fixed">
+        <axis>
+        <xyz>0 0 1</xyz>
+        </axis>
+        <parent>base_link</parent>
+        <child>right_engine_link</child>
+    </joint>
+    
+    <!-- Right Engine to Propeller Joint -->
+    <joint name="right_engine_propeller_joint" type="revolute">
+        <axis>
+        <xyz>1 0 0</xyz>
+        <limit>
+            <effort>100</effort>
+            <velocity>100</velocity>
+        </limit>
+        </axis>
+        <parent>right_engine_link</parent>
+        <child>right_propeller_link</child>
+        <dynamics>
+            <damping>0.05</damping>
+            <friction>0.05</friction>
+        </dynamics>
+    </joint>
+    
+    <!-- Left Lateral Engine Link -->
+    <link name="left_front_engine_link">
+        <pose>1.20 0.90 0.318237 0.0 0.0 1.5707</pose>
+        <visual name="left_front_engine_visual">
+        <geometry>
+            <mesh>
+            <uri>models://wamv_alpha/meshes/engine/mesh/engine.dae</uri>
+            </mesh>
+        </geometry>
+        </visual>
+        <collision name="left_front_engine_vertical_axis_collision">
+        <pose>-0.16 0 -0.24 0 0 0</pose>
+        <geometry>
+            <box>
+            <size>0.2 0.15 0.83</size>
+            </box>
+        </geometry>
+        </collision>
+        <collision name="left_front_engine_rear_end_collision">
+        <pose>-0.34 0 0.12 0 0 0</pose>
+        <geometry>
+            <box>
+            <size>0.12 0.15 0.12</size>
+            </box>
+        </geometry>
+        </collision>
+        <inertial>
+        <mass>15</mass>
+        <inertia>
+            <ixx>0.889245</ixx>
+            <ixy>0.0</ixy>
+            <ixz>0.0</ixz>
+            <iyy>0.911125</iyy>
+            <iyz>0.0</iyz>
+            <izz>0.078125</izz>
+        </inertia>
+        </inertial>
+    </link>
+    
+    <link name="left_front_propeller_link">
+        <pose relative_to='left_front_engine_link'>-0.27 0 -0.51 0 0 0</pose>
+        <visual name="left_front_propeller_visual">
+            <geometry>
+                <mesh>
+                    <uri>models://wamv_alpha/meshes/propeller/mesh/propeller.dae</uri>
+                </mesh>
+            </geometry>
+        </visual>
+        <collision name="left_front_propeller_collision">
+            <pose>-0.08 0 0 0 1.57 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.18</length>
+                    <radius>0.24</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        <inertial>
+            <mass>0.5</mass>
+            <inertia>
+                <ixx>0.008545</ixx>
+                <ixy>0.0</ixy>
+                <ixz>0.0</ixz>
+                <iyy>0.008545</iyy>
+                <iyz>0.0</iyz>
+                <izz>0.0144</izz>
+            </inertia>
+        </inertial>
+    </link>
+    
+    <joint name="wamv/left_front_chasis_engine_joint" type="fixed">
+        <axis>
+            <xyz>0 0 1</xyz>
+        </axis>
+        <parent>base_link</parent>
+        <child>left_front_engine_link</child>
+    </joint>
+    
+    <joint name="left_front_engine_propeller_joint" type="revolute">
+        <axis>
+            <xyz>1 0 0</xyz>
+            <limit>
+                <effort>100</effort>
+                <velocity>100</velocity>
+            </limit>
+        </axis>
+        <parent>left_front_engine_link</parent>
+        <child>left_front_propeller_link</child>
+        <dynamics>
+            <damping>0.05</damping>
+            <friction>0.05</friction>
+        </dynamics>
+    </joint>
+    
+    <link name="right_front_engine_link">
+        <pose>1.20 -0.90 0.318237 0.0 0.0 -1.5707</pose>
+        <visual name="right_front_engine_visual">
+            <geometry>
+                <mesh>
+                    <uri>models://wamv_alpha/meshes/engine/mesh/engine.dae</uri>
+                </mesh>
+            </geometry>
+        </visual>
+        <collision name="right_front_engine_vertical_axis_collision">
+            <pose>-0.16 0 -0.24 0 0 0</pose>
+            <geometry>
+                <box>
+                    <size>0.2 0.15 0.83</size>
+                </box>
+            </geometry>
+        </collision>
+        <collision name="right_front_engine_rear_end_collision">
+            <pose>-0.34 0 0.12 0 0 0</pose>
+            <geometry>
+                <box>
+                    <size>0.12 0.15 0.12</size>
+                </box>
+            </geometry>
+        </collision>
+        <inertial>
+            <mass>15</mass>
+            <inertia>
+                <ixx>0.889245</ixx>
+                <ixy>0.0</ixy>
+                <ixz>0.0</ixz>
+                <iyy>0.911125</iyy>
+                <iyz>0.0</iyz>
+                <izz>0.078125</izz>
+            </inertia>
+        </inertial>
+    </link>
+    
+    <link name="right_front_propeller_link">
+        <pose relative_to='right_front_engine_link'>-0.27 0 -0.51 0 0 0</pose>
+        <visual name="right_front_propeller_visual">
+            <geometry>
+                <mesh>
+                    <uri>models://wamv_alpha/meshes/propeller/mesh/propeller.dae</uri>
+                </mesh>
+            </geometry>
+        </visual>
+        <collision name="right_front_propeller_collision">
+            <pose>-0.08 0 0 0 1.57 0</pose>
+            <geometry>
+                <cylinder>
+                    <length>0.18</length>
+                    <radius>0.24</radius>
+                </cylinder>
+            </geometry>
+        </collision>
+        <inertial>
+            <mass>0.5</mass>
+            <inertia>
+                <ixx>0.008545</ixx>
+                <ixy>0.0</ixy>
+                <ixz>0.0</ixz>
+                <iyy>0.008545</iyy>
+                <iyz>0.0</iyz>
+                <izz>0.0144</izz>
+            </inertia>
+        </inertial>
+    </link>
+    
+    <joint name="right_front_chasis_engine_joint" type="fixed">
+        <axis>
+            <xyz>0 0 1</xyz>
+        </axis>
+        <parent>base_link</parent>
+        <child>right_front_engine_link</child>
+    </joint>
+    
+    <joint name="right_front_engine_propeller_joint" type="revolute">
+        <axis>
+            <xyz>1 0 0</xyz>
+            <limit>
+                <effort>100</effort>
+                <velocity>100</velocity>
+            </limit>
+        </axis>
+        <parent>right_front_engine_link</parent>
+        <child>right_front_propeller_link</child>
+        <dynamics>
+            <damping>0.05</damping>
+            <friction>0.05</friction>
+        </dynamics>
+    </joint>
+    
+  
+  
+
+  <link name="left_battery_link">
+    <pose>0 1 0.45 0 0 0</pose>
+    <visual name="left_battery_visual">
+        <pose>0 -1 -0.45 0 0 0</pose>
+      <geometry>
+        <mesh>
+            <uri>models://wamv_alpha/meshes/battery.dae</uri>
+        </mesh>
+      </geometry>
+    </visual>
+    <collision name="left_battery_collision">
+      <pose>0 0 0.15 0 0 0</pose>
+      <geometry>
+        <box><size>0.6 0.4 0.31</size></box>
+      </geometry>
+    </collision>
+    <inertial>
+      <pose>0 0 0.15 0 0 0</pose>
+      <mass>23.5</mass>
+      <inertia>
+        <ixx>0.5015291666666667</ixx>
+        <ixy>0</ixy>
+        <ixz>0</ixz>
+        <iyy>0.8931958333333333</iyy>
+        <iyz>0</iyz>
+        <izz>1.0183333333333333</izz>
+      </inertia>
+    </inertial>
+  </link>
+  <joint name="left_chasis_battery_joint" type="fixed">
+    <pose>0 1 0.45 0 0 0</pose>
+    <parent>base_link</parent>
+    <child>left_battery_link</child>
+  </joint>
+  <link name="right_battery_link">
+    <pose>0 -1 0.45 0 0 0</pose>
+    <visual name="right_battery_visual">
+        <pose>0 -1 -0.45 0 0 0</pose>
+      <geometry>
+        <mesh>
+            <uri>models://wamv_alpha/meshes/battery.dae</uri>
+        </mesh>
+      </geometry>
+    </visual>
+    <collision name="right_battery_collision">
+      <pose>0 0 0.15 0 0 0</pose>
+      <geometry>
+        <box><size>0.6 0.4 0.31</size></box>
+      </geometry>
+    </collision>
+    <inertial>
+      <pose>0 0 0.15 0 0 0</pose>
+      <mass>23.5</mass>
+      <inertia>
+        <ixx>0.5015291666666667</ixx>
+        <ixy>0</ixy>
+        <ixz>0</ixz>
+        <iyy>0.8931958333333333</iyy>
+        <iyz>0</iyz>
+        <izz>1.0183333333333333</izz>
+      </inertia>
+    </inertial>
+  </link>
+  <joint name="right_chasis_battery_joint" type="fixed">
+    <pose>0 -1 0.45 0 0 0</pose>
+    <parent>base_link</parent>
+    <child>right_battery_link</child>
+  </joint>
+  
+  <!-- <link name="base_link">
+  </link>
+
+  <joint name="dummy_joint" type="fixed">
+    <parent>base_link</parent>
+    <child>dummy_link</child>
+  </joint> -->
+  
+
+  <!-- Additional links and joints -->
+  <!-- <link name="green_landing_cylinder_link">
+    <visual name="green_landing_cylinder_visual">
+      <geometry>
+        <cylinder>
+            <length>0.01</length>
+            <radius>0.1</radius>
+        </cylinder>
+      </geometry>
+      <material>
+            <ambient>0.0 1.0 0.0 1.0</ambient>
+            <diffuse>0.0 1.0 0.0 1.0</diffuse>
+            <specular>0.0 1.0 0.0 1.0</specular>
+        </material>
+    </visual>
+    <collision name="green_landing_cylinder_collision">
+      <geometry>
+        <cylinder>
+            <length>0.01</length>
+            <radius>0.1</radius>
+        </cylinder>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="green_landing_cylinder_joint" type="fixed">
+    <parent>base_link</parent>
+    <child>green_landing_cylinder_link</child>
+    <pose>-0.24 0 1.78 0 0 0</pose>
+  </joint> -->
+
+  <!-- <plugin
+        filename="gz-sim-hydrodynamics-system"
+        name="gz::sim::systems::Hydrodynamics">
+        <link_name>base_link</link_name>
+        <xDotU>0.0</xDotU>
+        <yDotV>0.0</yDotV>
+        <nDotR>0.0</nDotR>
+        <xU>-51.3</xU>
+        <xAbsU>-72.4</xAbsU>
+        <yV>-40.0</yV>
+        <yAbsV>0.0</yAbsV>
+        <zW>-500.0</zW>
+        <kP>-50.0</kP>
+        <mQ>-50.0</mQ>
+        <nR>-400.0</nR>
+        <nAbsR>0.0</nAbsR>
+    </plugin> -->
+
+    <!-- hydrodynamics plugin -->
+    <plugin name="gz::sim::systems::Hydrodynamics" 
+        filename="gz-waves1-hydrodynamics-system">
+        <enable>wamv_alpha::base_link</enable>
+        <hydrodynamics>
+          <damping_on>1</damping_on>
+          <viscous_drag_on>1</viscous_drag_on>
+          <pressure_drag_on>1</pressure_drag_on>
+        </hydrodynamics>
+    </plugin>
+
+    <plugin
+        filename="gz-sim-thruster-system"
+        name="gz::sim::systems::Thruster">
+        <topic>joint/left/thruster/cmd_thrust</topic>
+        <joint_name>left_engine_propeller_joint</joint_name>
+        <thrust_coefficient>0.004422</thrust_coefficient>
+        <fluid_density>1000</fluid_density>
+        <propeller_diameter>0.2</propeller_diameter>
+        <velocity_control>true</velocity_control>
+        <max_thrust_cmd>1141.83673</max_thrust_cmd>
+    </plugin>
+
+    <plugin
+        filename="gz-sim-thruster-system"
+        name="gz::sim::systems::Thruster">
+        <topic>joint/left_front/thruster/cmd_thrust</topic>
+        <joint_name>left_front_engine_propeller_joint</joint_name>
+        <thrust_coefficient>0.004422</thrust_coefficient>
+        <fluid_density>1000</fluid_density>
+        <propeller_diameter>0.2</propeller_diameter>
+        <velocity_control>true</velocity_control>
+        <max_thrust_cmd>1141.83673</max_thrust_cmd>
+    </plugin>
+
+    <plugin
+        filename="gz-sim-thruster-system"
+        name="gz::sim::systems::Thruster">
+        <topic>joint/right/thruster/cmd_thrust</topic>
+        <joint_name>right_engine_propeller_joint</joint_name>
+        <thrust_coefficient>0.004422</thrust_coefficient>
+        <fluid_density>1000</fluid_density>
+        <propeller_diameter>0.2</propeller_diameter>
+        <velocity_control>true</velocity_control>
+        <max_thrust_cmd>1141.83673</max_thrust_cmd>
+    </plugin>
+
+    <plugin
+        filename="gz-sim-thruster-system"
+        name="gz::sim::systems::Thruster">
+        <topic>joint/right_front/thruster/cmd_thrust</topic>
+        <joint_name>right_front_engine_propeller_joint</joint_name>
+        <thrust_coefficient>0.004422</thrust_coefficient>
+        <fluid_density>1000</fluid_density>
+        <propeller_diameter>0.2</propeller_diameter>
+        <velocity_control>true</velocity_control>
+        <max_thrust_cmd>1141.83673</max_thrust_cmd>
+    </plugin>
+
+</model>
+</sdf>

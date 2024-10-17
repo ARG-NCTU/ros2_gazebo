@@ -19,10 +19,13 @@ def launch_setup(context, *args, **kwargs):
     pkg_ros_gz_sim = get_package_share_directory("ros_gz_sim")
     pkg_project_bringup = get_package_share_directory("veh_model")
     pkg_veh_models = get_package_share_directory("veh_model")
+    dir_veh_models = "/home/arg/ros2_gazebo/Gazebo/models"
+    pkg_veh_spawn = get_package_share_directory("gz_entity_manager")
 
     # Load SDF file.
     sdf_file = os.path.join(
-        pkg_veh_models, "models", veh, "model.sdf"
+        # pkg_veh_models, "models", veh, "model.sdf"
+        dir_veh_models, veh, "model.sdf"
     )
     with open(sdf_file, "r") as infp:
         robot_desc = infp.read()
@@ -97,6 +100,15 @@ def launch_setup(context, *args, **kwargs):
         namespace=veh,
     )
 
+    spawn_entity = Node(
+        package="gz_entity_manager",
+        executable="spawn_entity",
+        arguments=["--ros-args", "-p", f"world:={world}", "-p", f"entity_name:={veh}",
+         "-p", f"file_path:=/home/arg/ros2_gazebo/Gazebo/models/{veh}/model.sdf"],
+        output='screen',
+        condition=IfCondition(LaunchConfiguration("spawn_entity")),
+    )
+
     # Define the RViz node
     rviz = Node(
         package="rviz2",
@@ -123,6 +135,7 @@ def launch_setup(context, *args, **kwargs):
         ), 
         gz_sim_server, 
         gz_sim_guest, 
+        spawn_entity,
         rviz
     ]
 
@@ -138,6 +151,9 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'task', default_value='train', description='Purpose of Gazebo simulation'
+        ),
+        DeclareLaunchArgument(
+            'spawn_entity', default_value='false', description='spawn the veh model along with gz'
         ),
         DeclareLaunchArgument(
             'rviz', default_value='true', description='Launch rviz'

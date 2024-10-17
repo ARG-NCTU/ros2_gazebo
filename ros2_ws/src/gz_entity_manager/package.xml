@@ -13,12 +13,16 @@
   <build_depend>gz-transport12</build_depend>
   <build_depend>gz-msgs9</build_depend>
   <build_depend>gz-math7</build_depend>
+  <build_depend>gz-physics7</build_depend>
+  <build_depend>geometry_msgs</build_depend>
 
   <exec_depend>rclcpp</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>gz-transport12</exec_depend>
   <exec_depend>gz-msgs9</exec_depend>
   <exec_depend>gz-math7</exec_depend>
+  <exec_depend>gz-physics7</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

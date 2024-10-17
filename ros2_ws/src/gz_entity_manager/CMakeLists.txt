@@ -9,9 +9,13 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(gz-transport12 REQUIRED PATHS /usr/lib/x86_64-linux-gnu/cmake/gz-transport12)
+find_package(gz-transport13 REQUIRED PATHS /usr/lib/x86_64-linux-gnu/cmake/gz-transport13)
 find_package(gz-msgs9 REQUIRED PATHS /usr/lib/x86_64-linux-gnu/cmake/gz-msgs9)
 find_package(gz-math7 REQUIRED PATHS /usr/lib/x86_64-linux-gnu/cmake/gz-math7)
+find_package(gz-physics7 REQUIRED PATHS /usr/lib/x86_64-linux-gnu/cmake/gz-physics7)
+find_package(gz-sim8 REQUIRED PATHS /usr/lib/x86_64-linux-gnu/cmake/gz-sim8)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -55,10 +59,33 @@ ament_target_dependencies(move_entity
   gz-math7
 )
 
+add_executable(apply_force_torque src/apply_force_torque.cpp)
+ament_target_dependencies(apply_force_torque
+  rclcpp
+  std_msgs
+  gz-transport12
+  gz-msgs9
+  gz-math7
+  gz-physics7
+)
+
+add_executable(test_function src/test.cpp)
+ament_target_dependencies(test_function
+  rclcpp
+  std_msgs
+  gz-transport13
+  gz-msgs9
+  gz-math7
+  gz-sim8
+  geometry_msgs
+)
+
 install(TARGETS
   spawn_entity
   delete_entity
   move_entity
+  apply_force_torque
+  test_function
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -45,16 +45,32 @@ public:
 
     if(executed){
       if(result && rep.data()){
-        RCLCPP_INFO(this->get_logger(), "Entity moved successfully.");
+        // std::cout << result << std::endl << rep.data() << std::endl;
+        RCLCPP_INFO(this->get_logger(), "Request to move entity sent successfully.");
+        schedule_shutdown();
       }else{
-        RCLCPP_ERROR(this->get_logger(), "Failed to move entity.");
+        RCLCPP_ERROR(this->get_logger(), "Failed to send request.");
       }
+    }else{
+      RCLCPP_ERROR(this->get_logger(), "Request to move entity from service [%s] timed out.", service.c_str());
     }
   }
 private:
   std::string world_name;
   std::string entity_name;
   double x, y, z, roll, pitch, yaw;
+  rclcpp::TimerBase::SharedPtr shutdown_timer_;
+
+  void schedule_shutdown()
+  {
+    // Schedule a timer to shut down after 1 second
+    shutdown_timer_ = this->create_wall_timer(
+      std::chrono::seconds(1),
+      []() {
+        RCLCPP_INFO(rclcpp::get_logger("move_entity"), "Shutting down the node...");
+        rclcpp::shutdown();
+      });
+  }
 
 };
 
@@ -66,14 +82,3 @@ int main(int argc, char ** argv)
   rclcpp::shutdown();
   return 0;
 }
-
-// [this](const gz::msgs::Boolean &rep, const bool result) {
-//         if (result && rep.data())
-//         {
-//           RCLCPP_INFO(this->get_logger(), "Entity moved successfully.");
-//         }
-//         else
-//         {
-//           RCLCPP_ERROR(this->get_logger(), "Failed to move entity.");
-//         }
-//       }
