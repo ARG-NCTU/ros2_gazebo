@@ -8,10 +8,6 @@ model_data_files = [
     (os.path.join('share', package_name, root), [os.path.join(root, f) for f in files])
     for root, dirs, files in os.walk('models')
 ]
-bridge_data_files = [
-    (os.path.join('share', package_name, root), [os.path.join(root, f) for f in files])
-    for root, dirs, files in os.walk('gz_bridges')
-]
 launch_data_files = [
     (os.path.join('share', package_name, root), [os.path.join(root, f) for f in files if f.endswith('.launch.py')])
     for root, dirs, files in os.walk('launch')
@@ -27,11 +23,8 @@ setup(
 
         (os.path.join('share', package_name, 'worlds'),
             glob(os.path.join('worlds', '*.sdf'))),
-
-        (os.path.join('share', package_name, 'rviz'),
-            glob(os.path.join('rviz', '*.rviz'))),
         
-    ] + model_data_files + bridge_data_files + launch_data_files,
+    ] + model_data_files + launch_data_files,
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='root',
