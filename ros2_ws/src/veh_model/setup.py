@@ -44,6 +44,8 @@ setup(
             'bb_twist2thrust = veh_model.blueboat.twist2thrust:main',
             'bb_gz_reset_node = veh_model.blueboat.gz_reset_node:main',
             'wamv_alpha_twist2thrust = veh_model.wamv_alpha.twist2thrust:main',
+            'wamv_v1_twist2thrust = veh_model.wamv_v1.twist2thrust:main',
+            'wamv_v2_twist2thrust = veh_model.wamv_v2.twist2thrust:main',
         ],
     },
 )
