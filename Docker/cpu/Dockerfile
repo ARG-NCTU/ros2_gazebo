@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.0.0-cudnn8-devel-ubuntu22.04 AS main-setup
+FROM ubuntu:22.04 AS main-setup
 
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -11,6 +11,7 @@ ENV ROS_DISTRO=humble \
 
 RUN echo 'Etc/UTC' > /etc/timezone && \
     ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime
+
 
 ###################################### user #####################################
 RUN adduser --disabled-password \
@@ -237,6 +238,10 @@ ENV GZ_SIM_RESOURCE_PATH=${ARDU_WS}/src/ardupilot_gazebo/worlds:${ARDU_WS}/src/a
     GZ_SIM_SYSTEM_PLUGIN_PATH=${ARDU_WS}/install/ardupilot_gazebo/lib/ardupilot_gazebo/lib:${GZ_ENV_WS}/install/lib \
     GZ_GUI_PLUGIN_PATH=${GZ_ENV_WS}/src/asv_wave_sim/gz-waves/src/gui/plugins/waves_control/build
 
+###################################### ros2 c/c++ ################################
+RUN apt update && apt install -y \
+    libignition-transport12-dev
+    
 RUN echo "root ALL=(ALL)  ALL" >> /etc/sudoers \
     && echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> ${HOME}/.bashrc \
     && echo "source ${ARDU_WS}/install/setup.bash" >> ${HOME}/.bashrc \
