@@ -1050,7 +1050,7 @@
     <plugin
         filename="gz-sim-thruster-system"
         name="gz::sim::systems::Thruster">
-        <topic>joint/left/thruster/cmd_thrust</topic>
+        <cmd_topic>/model/wamv_v2/joint/left/thruster/cmd_thrust</cmd_topic>
         <joint_name>left_engine_propeller_joint</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
         <fluid_density>1000</fluid_density>
@@ -1064,13 +1064,13 @@
         name="gz::sim::systems::JointPositionController">
         <joint_name>left_chasis_engine_joint</joint_name>
         <use_velocity_commands>true</use_velocity_commands>
-        <topic>left/thruster/cmd_pos</topic>
+        <cmd_topic>/model/wamv_v2/left/thruster/cmd_pos</cmd_topic>
     </plugin>
 
     <plugin
         filename="gz-sim-thruster-system"
         name="gz::sim::systems::Thruster">
-        <topic>joint/left_lateral/thruster/cmd_thrust</topic>
+        <cmd_topic>/model/wamv_v2/joint/left_lateral/thruster/cmd_thrust</cmd_topic>
         <joint_name>left_lateral_engine_propeller_joint</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
         <fluid_density>1000</fluid_density>
@@ -1082,7 +1082,7 @@
     <plugin
         filename="gz-sim-thruster-system"
         name="gz::sim::systems::Thruster">
-        <topic>joint/right/thruster/cmd_thrust</topic>
+        <cmd_topic>/model/wamv_v2/joint/right/thruster/cmd_thrust</cmd_topic>
         <joint_name>right_engine_propeller_joint</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
         <fluid_density>1000</fluid_density>
@@ -1096,13 +1096,13 @@
         name="gz::sim::systems::JointPositionController">
         <joint_name>right_chasis_engine_joint</joint_name>
         <use_velocity_commands>true</use_velocity_commands>
-        <topic>right/thruster/cmd_pos</topic>
+        <cmd_topic>/model/wamv_v2/right/thruster/cmd_pos</cmd_topic>
     </plugin>
 
     <plugin
         filename="gz-sim-thruster-system"
         name="gz::sim::systems::Thruster">
-        <topic>joint/right_lateral/thruster/cmd_thrust</topic>
+        <cmd_topic>/model/wamv_v2/joint/right_lateral/thruster/cmd_thrust</cmd_topic>
         <joint_name>right_lateral_engine_propeller_joint</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
         <fluid_density>1000</fluid_density>
