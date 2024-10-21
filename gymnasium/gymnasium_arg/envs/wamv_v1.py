@@ -15,7 +15,7 @@ from sensor_msgs.msg import Imu
 from std_msgs.msg import Float64
 from rosgraph_msgs.msg import Clock
 from ros_gz_interfaces.srv import ControlWorld
-from gymnasium_arg.utils.gz_model import BlueBoat_GZ_MODEL
+from gymnasium_arg.utils.gz_model_wamv_v1 import WAMVV1_GZ_MODEL
 from gymnasium_arg.utils.vae import VAE, vae_loss
 import torch
 import torch.optim as optim
@@ -36,22 +36,22 @@ class GzClock(Node):
     def clock_callback(self, msg):
         self.current_time = msg.clock.sec + msg.clock.nanosec * 1e-9
 
-class BlueBoat_V2(gym.Env):
+class WAMV_V1(gym.Env):
     
     
     def __init__(self, 
-                 veh='blueboat',
+                 veh='wamv_v1',
                  world='waves',
                  headless=False,
                  render_mode=Optional[str],
                  maxstep=4096, 
-                 max_thrust=10.0,
+                 max_thrust=15*746/9.8,
                  hist_frame=10,
                  seed=0,
                  hz=50,
                  ):
         self.info = {
-            'node_name': f'blueboat_v2',
+            'node_name': f'wamv_v1_gym',
             'veh': veh,
             'world': world,
             'hist_frame': hist_frame,
@@ -76,15 +76,15 @@ class BlueBoat_V2(gym.Env):
         self.__reset_world()
         self.__pause()
         ################ blueboats   ################
-        self.veh = BlueBoat_GZ_MODEL(
+        self.veh = WAMVV1_GZ_MODEL(
             world=world,
             name=veh,
-            path='/home/arg/ros2_gazebo/Gazebo/models/blueboat',
+            path='/home/arg/ros2_gazebo/Gazebo/models/wamv_v1',
             pose=Pose(
                 position=Point(x=0.0, y=0.0, z=0.8),
                 orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
             ),
-            info={'veh':'blueboat', 'maxstep': maxstep, 'max_thrust': max_thrust, 'hist_frame': hist_frame}
+            info={'veh':'wamv_v1', 'maxstep': maxstep, 'max_thrust': max_thrust, 'hist_frame': hist_frame}
             )
         self.excutor.add_node(self.veh)
         self.excutor.add_node(self.node)

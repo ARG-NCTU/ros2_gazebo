@@ -17,7 +17,7 @@ today = date.today()
 checkpoint_callback = CheckpointCallback(
   save_freq=100000,
   save_path="./logs/",
-  name_prefix="dp_"+str(today),
+  name_prefix="bb_"+str(today),
   save_replay_buffer=True,
   save_vecnormalize=True,
 )

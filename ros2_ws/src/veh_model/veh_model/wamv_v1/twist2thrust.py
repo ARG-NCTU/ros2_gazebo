@@ -30,7 +30,7 @@ class ThrustCalculatorNode(Node):
         self.right_thrust_publisher = self.create_publisher(
             Float64, f'/model/{self.name}/joint/right_engine_propeller_joint/cmd_thrust', 1)
         self.right_front_thrust_publisher = self.create_publisher(
-            Float64, f'/model/{self.name}/joint/right_front_engine_propeller_joint/enable_deadband', 1)
+            Float64, f'/model/{self.name}/joint/right_front_engine_propeller_joint/cmd_thrust', 1)
 
     def cmd_vel_callback(self, msg):
         print(msg)
