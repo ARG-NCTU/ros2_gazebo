@@ -34,7 +34,7 @@ public:
     this->move_entity();
 
     // Shutdown the node after 1 second to ensure the message is processed
-    timer_ = this->create_wall_timer(
+    shutdown_timer_ = this->create_wall_timer(
       std::chrono::seconds(1),
       [this]() {
         RCLCPP_INFO(this->get_logger(), "Shutting down...");
@@ -71,6 +71,7 @@ private:
 
   std::string world_name;
   std::string entity_name;
+  rclcpp::TimerBase::SharedPtr shutdown_timer_;
   double x, y, z, roll, pitch, yaw;
 
 };

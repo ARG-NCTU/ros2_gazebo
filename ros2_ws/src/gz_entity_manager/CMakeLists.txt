@@ -14,7 +14,7 @@ find_package(gz-transport12 REQUIRED PATHS /usr/lib/x86_64-linux-gnu/cmake/gz-tr
 find_package(gz-transport13 REQUIRED PATHS /usr/lib/x86_64-linux-gnu/cmake/gz-transport13)
 find_package(gz-msgs9 REQUIRED PATHS /usr/lib/x86_64-linux-gnu/cmake/gz-msgs9)
 find_package(gz-math7 REQUIRED PATHS /usr/lib/x86_64-linux-gnu/cmake/gz-math7)
-find_package(gz-physics7 REQUIRED PATHS /usr/lib/x86_64-linux-gnu/cmake/gz-physics7)
+# find_package(gz-physics7 REQUIRED PATHS /usr/lib/x86_64-linux-gnu/cmake/gz-physics7)
 find_package(gz-sim8 REQUIRED PATHS /usr/lib/x86_64-linux-gnu/cmake/gz-sim8)
 # uncomment the following section in order to fill in
 # further dependencies manually.
@@ -66,7 +66,6 @@ ament_target_dependencies(apply_force_torque
   gz-transport12
   gz-msgs9
   gz-math7
-  gz-physics7
 )
 
 add_executable(test_function src/test.cpp)
