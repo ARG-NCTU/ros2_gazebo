@@ -1111,7 +1111,13 @@
         <max_thrust_cmd>1141.83673</max_thrust_cmd>
     </plugin>
 
-    
+    <!-- odometry publisher -->
+    <plugin name="gz::sim::systems::OdometryPublisher"
+        filename="gz-sim-odometry-publisher-system">
+        <odom_frame>odom</odom_frame>
+        <robot_base_frame>base_link</robot_base_frame>
+        <dimension>3</dimension>
+    </plugin>
 
 </model>
 </sdf>

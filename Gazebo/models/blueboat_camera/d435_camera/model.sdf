@@ -1,0 +1,100 @@
+<?xml version="1.0" ?>
+<sdf version='1.9'>
+    <model name="d435_camera">
+        <!-- <material name="aluminum">
+            <color rgba="0.5 0.5 0.5 1"/>
+        </material>
+        <material name="plastic">
+            <color rgba="0.1 0.1 0.1 1"/>
+        </material> -->
+        <link name="base_link"/>
+        <!-- camera body, with origin at bottom screw mount -->
+        <joint name="camera_joint" type="fixed">
+            <pose>0 0 0 0 0 0</pose>
+            <parent>base_link</parent>
+            <child>camera_bottom_screw_frame</child>
+        </joint>
+        <link name="camera_bottom_screw_frame"/>
+        <joint name="camera_link_joint" type="fixed">
+            <pose>0.010600000000000002 0.0175 0.0125 0 0 0</pose>
+            <parent>camera_bottom_screw_frame</parent>
+            <child>camera_link</child>
+        </joint>
+        <link name="camera_link">
+            <visual name="camera_visual">
+            <!-- the mesh origin is at front plate in between the two infrared camera axes -->
+            <pose>0.0043 -0.0175 0 1.5707963267948966 0 1.5707963267948966</pose>
+            <geometry>
+                <mesh>
+                    <uri>models://blueboat_camera/d435_camera/meshes/d435.dae</uri>
+                </mesh>
+            </geometry>
+            <material>
+                <ambient>0.8 0.8 0.8 1</ambient>  <!-- Red ambient color -->
+                <diffuse>0.8 0.8 0.8 1</diffuse>  <!-- Red diffuse color -->
+                <specular>0.5 0.5 0.5 1</specular> <!-- Low specular reflection -->
+                <emissive>0 0 0 1</emissive>  <!-- No emissive color -->
+            </material>
+            </visual>
+            <collision name="camera_collision">
+                <pose>0 -0.0175 0 0 0 0</pose>
+                <geometry>
+                    <box>
+                        <size>0.02505 0.09 0.025</size>
+                    </box>
+                </geometry>
+            </collision>
+            <inertial>
+            <!-- The following are not reliable values, and should not be used for modeling -->
+                <mass>0.072</mass>
+                <pose>0 0 0 0 0 0</pose>
+                <inertia>
+                    <ixx>0.003881243</ixx>
+                    <ixy>0.0</ixy>
+                    <ixz>0.0</ixz>
+                    <iyy>0.000498940</iyy>
+                    <iyz>0.0</iyz>
+                    <izz>0.003879257</izz>
+                </inertia>
+            </inertial>
+            <sensor name='camera' type='camera'>
+                <visualize>true</visualize>
+                <always_on>1</always_on>
+                <pose>0 0 0 0 0 0</pose>
+                <topic>camera</topic>
+                <update_rate>10</update_rate>
+                <camera>
+                    <horizontal_fov>1.214</horizontal_fov>
+                    <image>
+                        <width>480</width>
+                        <height>360</height>
+                        <format>R8G8B8</format>
+                    </image>
+                    <clip>
+                        <near>0.1</near>
+                        <far>100.0</far>
+                    </clip>
+                </camera>
+            </sensor>
+            <sensor name='depth_camera' type='depth_camera'>
+                <visualize>true</visualize>
+                <always_on>1</always_on>
+                <pose>0 0 0 0 0 0</pose>
+                <topic>depth_camera</topic>
+                <update_rate>10</update_rate>
+                <camera>
+                    <horizontal_fov>1.214</horizontal_fov>
+                    <image>
+                        <width>480</width>
+                        <height>360</height>
+                        <format>R_FLOAT32</format>
+                    </image>
+                    <clip>
+                        <near>0.1</near>
+                        <far>100.0</far>
+                    </clip>
+                </camera>
+            </sensor>
+        </link>
+    </model>
+</sdf>
