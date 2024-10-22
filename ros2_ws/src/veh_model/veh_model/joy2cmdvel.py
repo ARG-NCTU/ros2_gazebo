@@ -33,8 +33,8 @@ class JoyToCmdVel(Node):
             auto_msg = Bool()
             auto_msg.data = self.auto
             self.puber['auto'].publish(auto_msg)
-            if self.auto is True:
-                self.get_logger().info(f'Published auto: {auto_msg.data}')
+            # if self.auto is True:
+            #     self.get_logger().info(f'Published auto: {auto_msg.data}')
             rclpy.spin_once(self, timeout_sec=0.02)
         
 def main(args=None):

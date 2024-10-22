@@ -27,12 +27,12 @@ def launch_setup(context, *args, **kwargs):
         package='ros_gz_bridge',
         executable='parameter_bridge',
         arguments=[
-            f"/world/{world}/model/{veh}/link/imu_link/sensor/imu_sensor/imu@sensor_msgs/msg/Imu[gz.msgs.IMU",
-            f"/{veh}/joint/left/thruster/cmd_thrust@std_msgs/msg/Float64]gz.msgs.Double",
-            f"/{veh}/joint/left_front/thruster/cmd_thrust@std_msgs/msg/Float64]gz.msgs.Double",
-            f"/{veh}/joint/right/thruster/cmd_thrust@std_msgs/msg/Float64]gz.msgs.Double",
-            f"/{veh}/joint/right_front/thruster/cmd_thrust@std_msgs/msg/Float64]gz.msgs.Double",
-            f"/model/{veh}/pose@geometry_msgs/msg/Pose[gz.msgs.Pose",
+            f"/world/{world}/model/{veh}/link/imu_link/sensor/imu_sensor/imu@sensor_msgs/msg/Imu[ignition.msgs.IMU",
+            f"/{veh}/joint/left/thruster/cmd_thrust@std_msgs/msg/Float64]ignition.msgs.Double",
+            f"/{veh}/joint/left_front/thruster/cmd_thrust@std_msgs/msg/Float64]ignition.msgs.Double",
+            f"/{veh}/joint/right/thruster/cmd_thrust@std_msgs/msg/Float64]ignition.msgs.Double",
+            f"/{veh}/joint/right_front/thruster/cmd_thrust@std_msgs/msg/Float64]ignition.msgs.Double",
+            f"/model/{veh}/pose@geometry_msgs/msg/PoseArray[ignition.msgs.Pose_V",
         ],
         output='screen',
         namespace=veh
