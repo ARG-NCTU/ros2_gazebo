@@ -721,16 +721,16 @@
     </joint>
     
     <!-- Left Lateral Engine Link -->
-    <link name="left_lateral_engine_link">
+    <link name="left_front_engine_link">
         <pose>1.20 0.90 0.318237 0.0 0.0 1.5707</pose>
-        <visual name="left_lateral_engine_visual">
+        <visual name="left_front_engine_visual">
         <geometry>
             <mesh>
             <uri>models://wamv_v2/meshes/engine/mesh/engine.dae</uri>
             </mesh>
         </geometry>
         </visual>
-        <collision name="left_lateral_engine_vertical_axis_collision">
+        <collision name="left_front_engine_vertical_axis_collision">
         <pose>-0.16 0 -0.24 0 0 0</pose>
         <geometry>
             <box>
@@ -738,7 +738,7 @@
             </box>
         </geometry>
         </collision>
-        <collision name="left_lateral_engine_rear_end_collision">
+        <collision name="left_front_engine_rear_end_collision">
         <pose>-0.34 0 0.12 0 0 0</pose>
         <geometry>
             <box>
@@ -759,16 +759,16 @@
         </inertial>
     </link>
     
-    <link name="left_lateral_propeller_link">
-        <pose relative_to='left_lateral_engine_link'>-0.27 0 -0.51 0 0 0</pose>
-        <visual name="left_lateral_propeller_visual">
+    <link name="left_front_propeller_link">
+        <pose relative_to='left_front_engine_link'>-0.27 0 -0.51 0 0 0</pose>
+        <visual name="left_front_propeller_visual">
             <geometry>
                 <mesh>
                     <uri>models://wamv_v2/meshes/propeller/mesh/propeller.dae</uri>
                 </mesh>
             </geometry>
         </visual>
-        <collision name="left_lateral_propeller_collision">
+        <collision name="left_front_propeller_collision">
             <pose>-0.08 0 0 0 1.57 0</pose>
             <geometry>
                 <cylinder>
@@ -790,15 +790,15 @@
         </inertial>
     </link>
     
-    <joint name="left_lateral_chasis_engine_joint" type="fixed">
+    <joint name="left_front_chasis_engine_joint" type="fixed">
         <axis>
             <xyz>0 0 1</xyz>
         </axis>
         <parent>base_link</parent>
-        <child>left_lateral_engine_link</child>
+        <child>left_front_engine_link</child>
     </joint>
     
-    <joint name="left_lateral_engine_propeller_joint" type="revolute">
+    <joint name="left_front_engine_propeller_joint" type="revolute">
         <axis>
             <xyz>1 0 0</xyz>
             <limit>
@@ -806,24 +806,24 @@
                 <velocity>100</velocity>
             </limit>
         </axis>
-        <parent>left_lateral_engine_link</parent>
-        <child>left_lateral_propeller_link</child>
+        <parent>left_front_engine_link</parent>
+        <child>left_front_propeller_link</child>
         <dynamics>
             <damping>0.05</damping>
             <friction>0.05</friction>
         </dynamics>
     </joint>
     
-    <link name="right_lateral_engine_link">
+    <link name="right_front_engine_link">
         <pose>1.20 -0.90 0.318237 0.0 0.0 -1.5707</pose>
-        <visual name="right_lateral_engine_visual">
+        <visual name="right_front_engine_visual">
             <geometry>
                 <mesh>
                     <uri>models://wamv_v2/meshes/engine/mesh/engine.dae</uri>
                 </mesh>
             </geometry>
         </visual>
-        <collision name="right_lateral_engine_vertical_axis_collision">
+        <collision name="right_front_engine_vertical_axis_collision">
             <pose>-0.16 0 -0.24 0 0 0</pose>
             <geometry>
                 <box>
@@ -831,7 +831,7 @@
                 </box>
             </geometry>
         </collision>
-        <collision name="right_lateral_engine_rear_end_collision">
+        <collision name="right_front_engine_rear_end_collision">
             <pose>-0.34 0 0.12 0 0 0</pose>
             <geometry>
                 <box>
@@ -852,16 +852,16 @@
         </inertial>
     </link>
     
-    <link name="right_lateral_propeller_link">
-        <pose relative_to='right_lateral_engine_link'>-0.27 0 -0.51 0 0 0</pose>
-        <visual name="right_lateral_propeller_visual">
+    <link name="right_front_propeller_link">
+        <pose relative_to='right_front_engine_link'>-0.27 0 -0.51 0 0 0</pose>
+        <visual name="right_front_propeller_visual">
             <geometry>
                 <mesh>
                     <uri>models://wamv_v2/meshes/propeller/mesh/propeller.dae</uri>
                 </mesh>
             </geometry>
         </visual>
-        <collision name="right_lateral_propeller_collision">
+        <collision name="right_front_propeller_collision">
             <pose>-0.08 0 0 0 1.57 0</pose>
             <geometry>
                 <cylinder>
@@ -883,15 +883,15 @@
         </inertial>
     </link>
     
-    <joint name="right_lateral_chasis_engine_joint" type="fixed">
+    <joint name="right_front_chasis_engine_joint" type="fixed">
         <axis>
             <xyz>0 0 1</xyz>
         </axis>
         <parent>base_link</parent>
-        <child>right_lateral_engine_link</child>
+        <child>right_front_engine_link</child>
     </joint>
     
-    <joint name="right_lateral_engine_propeller_joint" type="revolute">
+    <joint name="right_front_engine_propeller_joint" type="revolute">
         <axis>
             <xyz>1 0 0</xyz>
             <limit>
@@ -899,8 +899,8 @@
                 <velocity>100</velocity>
             </limit>
         </axis>
-        <parent>right_lateral_engine_link</parent>
-        <child>right_lateral_propeller_link</child>
+        <parent>right_front_engine_link</parent>
+        <child>right_front_propeller_link</child>
         <dynamics>
             <damping>0.05</damping>
             <friction>0.05</friction>
@@ -1050,7 +1050,7 @@
     <plugin
         filename="gz-sim-thruster-system"
         name="gz::sim::systems::Thruster">
-        <cmd_topic>/model/wamv_v2/joint/left/thruster/cmd_thrust</cmd_topic>
+        <topic>//joint/left/thruster/cmd_thrust</topic>
         <joint_name>left_engine_propeller_joint</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
         <fluid_density>1000</fluid_density>
@@ -1064,14 +1064,14 @@
         name="gz::sim::systems::JointPositionController">
         <joint_name>left_chasis_engine_joint</joint_name>
         <use_velocity_commands>true</use_velocity_commands>
-        <cmd_topic>/model/wamv_v2/left/thruster/cmd_pos</cmd_topic>
+        <topic>//joint/left/thruster/cmd_pos</topic>
     </plugin>
 
     <plugin
         filename="gz-sim-thruster-system"
         name="gz::sim::systems::Thruster">
-        <cmd_topic>/model/wamv_v2/joint/left_lateral/thruster/cmd_thrust</cmd_topic>
-        <joint_name>left_lateral_engine_propeller_joint</joint_name>
+        <topic>//joint/left_front/thruster/cmd_thrust</topic>
+        <joint_name>left_front_engine_propeller_joint</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
         <fluid_density>1000</fluid_density>
         <propeller_diameter>0.2</propeller_diameter>
@@ -1082,7 +1082,7 @@
     <plugin
         filename="gz-sim-thruster-system"
         name="gz::sim::systems::Thruster">
-        <cmd_topic>/model/wamv_v2/joint/right/thruster/cmd_thrust</cmd_topic>
+        <topic>/model/wamv_v2/joint/right/thruster/cmd_thrust</topic>
         <joint_name>right_engine_propeller_joint</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
         <fluid_density>1000</fluid_density>
@@ -1096,14 +1096,14 @@
         name="gz::sim::systems::JointPositionController">
         <joint_name>right_chasis_engine_joint</joint_name>
         <use_velocity_commands>true</use_velocity_commands>
-        <cmd_topic>/model/wamv_v2/right/thruster/cmd_pos</cmd_topic>
+        <topic>//joint/right/thruster/cmd_pos</topic>
     </plugin>
 
     <plugin
         filename="gz-sim-thruster-system"
         name="gz::sim::systems::Thruster">
-        <cmd_topic>/model/wamv_v2/joint/right_lateral/thruster/cmd_thrust</cmd_topic>
-        <joint_name>right_lateral_engine_propeller_joint</joint_name>
+        <topic>//joint/right_front/thruster/cmd_thrust</topic>
+        <joint_name>right_front_engine_propeller_joint</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
         <fluid_density>1000</fluid_density>
         <propeller_diameter>0.2</propeller_diameter>
