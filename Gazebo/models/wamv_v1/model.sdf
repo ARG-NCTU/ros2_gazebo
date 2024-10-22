@@ -1044,7 +1044,7 @@
     <plugin
         filename="gz-sim-thruster-system"
         name="gz::sim::systems::Thruster">
-        <cmd_topic>/model/wamv_v1/joint/left/thruster/cmd_thrust</cmd_topic>
+        <topic>//joint/left/thruster/cmd_thrust</topic>
         <joint_name>left_engine_propeller_joint</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
         <fluid_density>1000</fluid_density>
@@ -1056,7 +1056,7 @@
     <plugin
         filename="gz-sim-thruster-system"
         name="gz::sim::systems::Thruster">
-        <cmd_topic>/model/wamv_v1/joint/left_front/thruster/cmd_thrust</cmd_topic>
+        <topic>//joint/left_front/thruster/cmd_thrust</topic>
         <joint_name>left_front_engine_propeller_joint</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
         <fluid_density>1000</fluid_density>
@@ -1068,7 +1068,7 @@
     <plugin
         filename="gz-sim-thruster-system"
         name="gz::sim::systems::Thruster">
-        <cmd_topic>/model/wamv_v1/joint/right/thruster/cmd_thrust</cmd_topic>
+        <topic>//joint/right/thruster/cmd_thrust</topic>
         <joint_name>right_engine_propeller_joint</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
         <fluid_density>1000</fluid_density>
@@ -1080,7 +1080,7 @@
     <plugin
         filename="gz-sim-thruster-system"
         name="gz::sim::systems::Thruster">
-        <cmd_topic>/model/wamv_v1/joint/right_front/thruster/cmd_thrust</cmd_topic>
+        <topic>//joint/right_front/thruster/cmd_thrust</topic>
         <joint_name>right_front_engine_propeller_joint</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
         <fluid_density>1000</fluid_density>

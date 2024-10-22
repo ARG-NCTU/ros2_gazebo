@@ -60,7 +60,7 @@ class SB3_DP(Node):
         self.obs['goal'] = msg.pose
         
     def __pose_callback(self, msg):
-        q_goal = np.array([msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w])
+        q_goal = np.array([self.obs['goal'].orientation.x, self.obs['goal'].orientation.y, self.obs['goal'].orientation.z, self.obs['goal'].orientation.w])
         _, _, yaw_goal = R.from_quat(q_goal).as_euler('xyz')
         q = np.array([msg.pose.orintation.x, msg.pose.orintation.y, msg.pose.orintation.z, msg.pose.orintation.w])
         _, _, yaw = R.from_quat(q).as_euler('xyz')
@@ -70,7 +70,8 @@ class SB3_DP(Node):
         elif angle <= -np.pi:
             angle += 2*np.pi
 
-        pos_diff = np.array([self.obs['goal'].position.x - msg.pose.position.x, self.obs['goal'].position.y - msg.pose.position.y, angle])
+        goal_x_prime, goal_y_prime = self.map_to_model_frame(np.array([self.obs['goal'].position.x, self.obs['goal'].position.y]), np.array([msg.pose.position.x, msg.pose.position.y]), angle)
+        pos_diff = np.array([goal_x_prime, goal_y_prime, angle])
         self.obs['goal_diff'] = np.roll(self.obs['goal_diff'], 1, axis=0)
         self.obs['goal_diff'][0] = pos_diff
     

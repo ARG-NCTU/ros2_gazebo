@@ -17,20 +17,20 @@ class ThrustCalculatorNode(Node):
         # Subscriber to cmd_vel
         self.subscription = self.create_subscription(
             TwistStamped,
-            f'/model/{self.name}/thrust_calculator/cmd_vel',
+            f'/{self.name}/cmd_vel',
             self.cmd_vel_callback,
             10)
         self.subscription  # prevent unused variable warning
 
         # Publishers for port and starboard motor thrusts
         self.left_thrust_publisher = self.create_publisher(
-            Float64, f'/model/{self.name}/joint/left_engine_propeller_joint/cmd_thrust', 1)
+            Float64, f'/{self.name}/joint/left/thruster/cmd_thrust', 1)
         self.left_front_thrust_publisher = self.create_publisher(
-            Float64, f'/model/{self.name}/joint/left_front_engine_propeller_joint/cmd_thrust', 1)
+            Float64, f'/{self.name}/joint/left_front/thruster/cmd_thrust', 1)
         self.right_thrust_publisher = self.create_publisher(
-            Float64, f'/model/{self.name}/joint/right_engine_propeller_joint/cmd_thrust', 1)
+            Float64, f'/{self.name}/joint/right/thruster/cmd_thrust', 1)
         self.right_front_thrust_publisher = self.create_publisher(
-            Float64, f'/model/{self.name}/joint/right_front_engine_propeller_joint/cmd_thrust', 1)
+            Float64, f'/{self.name}/joint/right_front/thruster/cmd_thrust', 1)
 
     def cmd_vel_callback(self, msg):
         print(msg)
