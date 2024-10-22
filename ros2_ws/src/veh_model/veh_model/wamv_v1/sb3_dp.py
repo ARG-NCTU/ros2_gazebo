@@ -1,25 +1,8 @@
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import TwistStamped, PoseStamped, Pose, Twist, PoseArray
-from std_msgs.msg import Float64, Bool
-from sensor_msgs.msg import Imu
-from std_msgs.msg import Float64
-import gymnasium as gym
-from stable_baselines3 import PPO, TD3
-import numpy as np
-from scipy.spatial.transform import Rotation as R
-import os, sys
-import torch
-import threading
-from rclpy.executors import MultiThreadedExecutor
-sys.path.append("/home/arg/ros2_gazebo/ros2_ws/install/veh_model/share/veh_model/models/wamv_v1/")
-from multiInput_featureExtractor import CustomFeatureExtractor
-
-
-import rclpy
-from rclpy.node import Node
-from geometry_msgs.msg import TwistStamped, PoseStamped, PoseArray
+from geometry_msgs.msg import TwistStamped, PoseStamped, PoseArray, Pose, Point, Quaternion
 from std_msgs.msg import Bool
+from stable_baselines3 import PPO, TD3
 from sensor_msgs.msg import Imu
 import numpy as np
 from scipy.spatial.transform import Rotation as R
@@ -31,14 +14,15 @@ from multiInput_featureExtractor import CustomFeatureExtractor
 
 class SB3_DP(Node):
     def __init__(self):
-        super().__init__('sb3_dp')
+        super().__init__('sb3_dp', namespace='/wamv_v1')
         self.declare_parameter('veh', 'wamv_v1')
         self.veh = self.get_parameter('veh').get_parameter_value().string_value
 
         self.obs = {
-            'goal': None,
-            'auto': True,
+            'goal': Pose(position=Point(x=0.0, y=0.0, z=0.0), orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)),
+            'auto': False,
             'lidar': np.full((4, 241), 10),
+            # 'lidar': np.zeros((4, 241)),
             'goal_diff': np.zeros((10, 3)),
             'velocity': np.zeros((10, 1)),
             'last_time': None,
@@ -72,7 +56,7 @@ class SB3_DP(Node):
             "multiInput_featureExtractor": CustomFeatureExtractor
         }
         self.model = TD3.load(
-            f"/home/arg/ros2_gazebo/ros2_ws/install/veh_model/share/veh_model/models/wamv_v1/forest_td3_2024-05-22_2900000_steps.zip",
+            f"/home/arg/ros2_gazebo/ros2_ws/install/veh_model/share/veh_model/models/wamv_v1/vrx_td3_2024-07-22_200000_steps.zip",
             device=device,
             custom_objects=custom_objects
         )
@@ -83,14 +67,15 @@ class SB3_DP(Node):
 
     def control_loop(self):
         if self.obs['auto'] is True:
-            self.get_logger().info("Auto mode is on.")
+            # self.get_logger().info("Auto mode is on.")
             obs = {
                 'laser': self.obs['lidar'],
                 'track': self.obs['goal_diff'].flatten(),
                 'velocity': self.obs['velocity'].flatten(),
             }
+            # self.get_logger().info(f"Observation: {obs}")
             action, _ = self.model.predict(obs)
-            self.get_logger().info(f"Action: {action}")
+            # self.get_logger().info(f"Action: {action}")
             action = self.__remap_action(action)
             cmd_vel = TwistStamped()
             cmd_vel.header.stamp = self.get_clock().now().to_msg()
@@ -100,22 +85,23 @@ class SB3_DP(Node):
             self.cmd_vel_puber.publish(cmd_vel)
 
     def __goal_callback(self, msg):
-        self.get_logger().info("Received goal pose")
+        # self.get_logger().info("Received goal pose")
         self.obs['goal'] = msg.pose
 
     def __pose_callback(self, msg):
+        self.get_logger().info("Received pose array message")
         try:
             if not msg.poses:
                 self.get_logger().warning("Received empty PoseArray")
                 return
 
             pose = msg.poses[0]
-            self.get_logger().info(f"Pose: {pose}")
 
             if self.obs['goal'] is None:
                 self.get_logger().warning("Goal pose is None")
                 return
 
+            # Extract orientations and positions
             q_goal = np.array([
                 self.obs['goal'].orientation.x,
                 self.obs['goal'].orientation.y,
@@ -143,6 +129,9 @@ class SB3_DP(Node):
                 angle
             )
             pos_diff = np.array([goal_x_prime, goal_y_prime, angle])
+
+            self.get_logger().info(f"Position difference: {pos_diff}")
+
             self.obs['goal_diff'] = np.roll(self.obs['goal_diff'], 1, axis=0)
             self.obs['goal_diff'][0] = pos_diff
             self.obs['velocity'] = np.roll(self.obs['velocity'], 1, axis=0)
@@ -165,11 +154,7 @@ class SB3_DP(Node):
             self.get_logger().error(f"Error in pose callback: {e}")
 
     def __auto_callback(self, msg):
-        self.get_logger().info(f"Auto mode: {msg.data}")
-        if self.obs['goal'] is None and msg.data is True:
-            self.obs['goal'] = self.obs['last_pose']
-        else:
-            self.obs['goal'] = None
+        # self.get_logger().info(f"Auto mode: {msg.data}")
         self.obs['auto'] = msg.data
 
     def __remap_action(self, action):

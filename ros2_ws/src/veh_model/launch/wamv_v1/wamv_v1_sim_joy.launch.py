@@ -41,9 +41,9 @@ def launch_setup(context, *args, **kwargs):
     twist2thrust = Node(
         package='veh_model',
         executable=f'{veh}_twist2thrust',
-        output='screen',
         parameters=[{'name': veh, 'max_thrust': max_thrust}],
-        namespace=veh
+        output='screen',
+        namespace=veh,
     )
 
     sb3_dp = Node(

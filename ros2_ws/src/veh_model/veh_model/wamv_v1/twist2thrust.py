@@ -33,7 +33,6 @@ class ThrustCalculatorNode(Node):
             Float64, f'/{self.name}/joint/right_front/thruster/cmd_thrust', 1)
 
     def cmd_vel_callback(self, msg):
-        print(msg)
         left_msg = Float64()
         right_msg = Float64()
         left_front_msg = Float64()
@@ -48,9 +47,9 @@ class ThrustCalculatorNode(Node):
         self.right_thrust_publisher.publish(right_msg)
         self.right_front_thrust_publisher.publish(right_front_msg)
 
-        self.get_logger().info(
-            f"left thrust: {left_msg.data:.4f} rad/s, right thrust: {right_msg.data:.4f} rad/s, left front thrust: {left_front_msg.data:.4f} rad/s right front thrust: {right_front_msg.data:.4f} rad/s"
-        )
+        # self.get_logger().info(
+        #     f"left thrust: {left_msg.data:.4f} rad/s, right thrust: {right_msg.data:.4f} rad/s, left front thrust: {left_front_msg.data:.4f} rad/s right front thrust: {right_front_msg.data:.4f} rad/s"
+        # )
 
 def main(args=None):
     rclpy.init(args=args)
