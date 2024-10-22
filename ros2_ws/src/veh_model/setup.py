@@ -40,6 +40,7 @@ setup(
             'wamv_alpha_twist2thrust = veh_model.wamv_alpha.twist2thrust:main',
             'wamv_v1_twist2thrust = veh_model.wamv_v1.twist2thrust:main',
             'wamv_v2_twist2thrust = veh_model.wamv_v2.twist2thrust:main',
+            'wamv_v1_sb3_dp = veh_model.wamv_v1.sb3_dp:main',
         ],
     },
 )

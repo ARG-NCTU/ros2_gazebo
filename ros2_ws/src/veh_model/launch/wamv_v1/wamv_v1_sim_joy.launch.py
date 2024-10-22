@@ -32,6 +32,7 @@ def launch_setup(context, *args, **kwargs):
             f"/{veh}/joint/left_front/thruster/cmd_thrust@std_msgs/msg/Float64]gz.msgs.Double",
             f"/{veh}/joint/right/thruster/cmd_thrust@std_msgs/msg/Float64]gz.msgs.Double",
             f"/{veh}/joint/right_front/thruster/cmd_thrust@std_msgs/msg/Float64]gz.msgs.Double",
+            f"/model/{veh}/pose@geometry_msgs/msg/Pose[gz.msgs.Pose",
         ],
         output='screen',
         namespace=veh
@@ -45,7 +46,15 @@ def launch_setup(context, *args, **kwargs):
         namespace=veh
     )
 
-    return [joy2cmdvel, bridge, twist2thrust]
+    sb3_dp = Node(
+        package='veh_model',
+        executable=f'{veh}_sb3_dp',
+        output='screen',
+        parameters=[{'veh': veh}],
+        namespace=veh
+    )
+
+    return [joy2cmdvel, bridge, twist2thrust, sb3_dp]
 
 def generate_launch_description():
     return LaunchDescription([
