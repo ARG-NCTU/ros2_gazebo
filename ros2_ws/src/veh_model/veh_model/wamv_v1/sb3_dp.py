@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import TwistStamped, PoseStamped, PoseArray, Pose, Point, Quaternion
 from std_msgs.msg import Bool
-from stable_baselines3 import PPO, TD3
+from stable_baselines3 import PPO, TD3, SAC
 from sensor_msgs.msg import Imu
 import numpy as np
 from scipy.spatial.transform import Rotation as R
@@ -23,8 +23,10 @@ class SB3_DP(Node):
             'auto': False,
             'lidar': np.full((4, 241), 10),
             # 'lidar': np.zeros((4, 241)),
-            'goal_diff': np.zeros((10, 3)),
-            'velocity': np.zeros((10, 1)),
+            'goal_diff': None,
+            'velocity': None,
+            # 'goal_diff': np.zeros((10, 3)),
+            # 'velocity': np.zeros((10, 1)),
             'last_time': None,
             'last_pose': None,
         }
@@ -52,13 +54,9 @@ class SB3_DP(Node):
 
         self.get_logger().info("Loading model...")
         device = torch.device('cpu') if not torch.cuda.is_available() else torch.device('cuda')
-        custom_objects = {
-            "multiInput_featureExtractor": CustomFeatureExtractor
-        }
-        self.model = TD3.load(
-            f"/home/arg/ros2_gazebo/ros2_ws/install/veh_model/share/veh_model/models/wamv_v1/vrx_td3_2024-07-22_200000_steps.zip",
+        self.model = SAC.load(
+            f"/home/arg/ros2_gazebo/ros2_ws/install/veh_model/share/veh_model/models/wamv_v1/vrx_sac_2024-10-22_100000_steps.zip",
             device=device,
-            custom_objects=custom_objects
         )
         self.get_logger().info("Model loaded.")
 
@@ -70,13 +68,12 @@ class SB3_DP(Node):
             # self.get_logger().info("Auto mode is on.")
             obs = {
                 'laser': self.obs['lidar'],
-                'track': self.obs['goal_diff'].flatten(),
-                'velocity': self.obs['velocity'].flatten(),
+                'track': self.obs['goal_diff'].reshape(-1),
+                'vel': self.obs['velocity'].reshape(-1),
             }
             # self.get_logger().info(f"Observation: {obs}")
             action, _ = self.model.predict(obs)
-            # self.get_logger().info(f"Action: {action}")
-            action = self.__remap_action(action)
+            # action = self.__remap_action(action)
             cmd_vel = TwistStamped()
             cmd_vel.header.stamp = self.get_clock().now().to_msg()
             cmd_vel.header.frame_id = 'base_link'
@@ -89,7 +86,6 @@ class SB3_DP(Node):
         self.obs['goal'] = msg.pose
 
     def __pose_callback(self, msg):
-        self.get_logger().info("Received pose array message")
         try:
             if not msg.poses:
                 self.get_logger().warning("Received empty PoseArray")
@@ -123,20 +119,19 @@ class SB3_DP(Node):
             elif angle <= -np.pi:
                 angle += 2 * np.pi
 
-            goal_x_prime, goal_y_prime = self.map_to_model_frame(
-                np.array([self.obs['goal'].position.x, self.obs['goal'].position.y]),
-                np.array([pose.position.x, pose.position.y]),
-                angle
-            )
+            # goal_x_prime, goal_y_prime = self.map_to_model_frame(
+            #     np.array([self.obs['goal'].position.x, self.obs['goal'].position.y]),
+            #     np.array([pose.position.x, pose.position.y]),
+            #     angle
+            # )
+            goal_x_prime = self.obs['goal'].position.x - pose.position.x
+            goal_y_prime = self.obs['goal'].position.y - pose.position.y
             pos_diff = np.array([goal_x_prime, goal_y_prime, angle])
-
-            self.get_logger().info(f"Position difference: {pos_diff}")
-
-            self.obs['goal_diff'] = np.roll(self.obs['goal_diff'], 1, axis=0)
-            self.obs['goal_diff'][0] = pos_diff
-            self.obs['velocity'] = np.roll(self.obs['velocity'], 1, axis=0)
+            if self.obs['auto'] is True:
+                self.get_logger().info(f"Position difference: {pos_diff}")
 
             current_time = self.get_clock().now()
+            vel = 0.0
             if self.obs['last_time'] is None or self.obs['last_pose'] is None:
                 self.obs['last_time'] = current_time
                 self.obs['last_pose'] = pose
@@ -148,8 +143,23 @@ class SB3_DP(Node):
                     (pose.position.y - self.obs['last_pose'].position.y) ** 2
                 )
                 vel = distance / dt if dt > 0 else 0.0
-                self.obs['velocity'][0] = vel
+                # self.obs['velocity'][0] = vel
                 self.obs['last_pose'] = pose
+            if self.obs['goal_diff'] is None:
+                self.obs['goal_diff'] = np.tile(pos_diff, (10, 1))
+            else:
+                self.obs['goal_diff'][:-1] = self.obs['goal_diff'][1:]
+                self.obs['goal_diff'][-1] = pos_diff
+            if self.obs['velocity'] is None:
+                self.obs['velocity'] = np.full((10, 1), vel)
+            else:
+                self.obs['velocity'][:-1] = self.obs['velocity'][1:]
+                self.obs['velocity'][-1] = vel
+            # self.obs['goal_diff'] = np.roll(self.obs['goal_diff'], 1, axis=0)
+            # self.obs['goal_diff'][0] = pos_diff
+            # self.obs['velocity'] = np.roll(self.obs['velocity'], 1, axis=0)
+            # self.obs['velocity'][0] = vel
+
         except Exception as e:
             self.get_logger().error(f"Error in pose callback: {e}")
 
