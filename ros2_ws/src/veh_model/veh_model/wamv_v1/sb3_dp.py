@@ -126,17 +126,14 @@ class SB3_DP(Node):
             elif angle <= -np.pi:
                 angle += 2 * np.pi
 
-            # goal_x_prime, goal_y_prime = self.map_to_model_frame(
-            #     np.array([self.obs['goal'].position.x, self.obs['goal'].position.y]),
-            #     np.array([pose.position.x, pose.position.y]),
-            #     angle
-            # )
-            goal_x_prime = self.obs['goal'].position.x - pose.position.x
-            goal_y_prime = self.obs['goal'].position.y - pose.position.y
+            goal_x_prime, goal_y_prime = self.map_to_model_frame(
+                np.array([self.obs['goal'].position.x, self.obs['goal'].position.y]),
+                np.array([pose.position.x, pose.position.y]),
+                yaw
+            )
+            # goal_x_prime = self.obs['goal'].position.x - pose.position.x
+            # goal_y_prime = self.obs['goal'].position.y - pose.position.y
             pos_diff = np.array([goal_x_prime, goal_y_prime, angle])
-            # self.get_logger().info(f"Goal difference: {pos_diff}")
-            # if self.obs['auto'] is True:
-            #     self.get_logger().info(f"Position difference: {pos_diff}")
 
             current_time = self.get_clock().now()
             vel = 0.0
@@ -153,16 +150,7 @@ class SB3_DP(Node):
                 vel = distance / dt if dt > 0 else 0.0
                 # self.obs['velocity'][0] = vel
                 self.obs['last_pose'] = pose
-            # if self.obs['goal_diff'] is None:
-            #     self.obs['goal_diff'] = np.tile(pos_diff, (10, 1))
-            # else:
-            #     self.obs['goal_diff'][:-1] = self.obs['goal_diff'][1:]
-            #     self.obs['goal_diff'][-1] = pos_diff
-            # if self.obs['velocity'] is None:
-            #     self.obs['velocity'] = np.full(vel, (10, 1))
-            # else:
-            #     self.obs['velocity'][:-1] = self.obs['velocity'][1:]
-            #     self.obs['velocity'][-1] = vel
+
             self.obs['goal_diff'] = np.roll(self.obs['goal_diff'], -1, axis=0)
             self.obs['goal_diff'][-1] = pos_diff
             self.obs['velocity'] = np.roll(self.obs['velocity'], -1, axis=0)

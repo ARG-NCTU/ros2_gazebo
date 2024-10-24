@@ -51,10 +51,20 @@ def launch_setup(context, *args, **kwargs):
         executable=f'{veh}_sb3_dp',
         output='screen',
         parameters=[{'veh': veh}],
-        namespace=veh
+        namespace=veh,
+        condition=IfCondition(LaunchConfiguration('sb3')),
     )
 
-    return [joy2cmdvel, bridge, twist2thrust, sb3_dp]
+    acme_dp = Node(
+        package='veh_model',
+        executable=f'{veh}_acme_dp',
+        output='screen',
+        parameters=[{'veh': veh}],
+        namespace=veh,
+        condition=IfCondition(launch.substitutions.NotSubstitution(LaunchConfiguration('sb3'))),
+    )
+
+    return [joy2cmdvel, bridge, twist2thrust, sb3_dp, acme_dp]
 
 def generate_launch_description():
     return LaunchDescription([
@@ -66,6 +76,9 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'max_thrust', default_value='114.183', description='Maximum thrust'
+        ),
+        DeclareLaunchArgument(
+            'sb3', default_value='false', description='Use stable baselines 3'
         ),
         OpaqueFunction(function=launch_setup)
     ])

@@ -15,7 +15,7 @@ from ros_gz_interfaces.srv import DeleteEntity, SpawnEntity
 from std_msgs.msg import Float32, Float64
 import numpy as np
 import xml.etree.ElementTree as ET
-from gz_model import GZ_MODEL
+from gymnasium_arg.utils.gz_model import GZ_MODEL
 
 
 class WAMVV1_GZ_MODEL(GZ_MODEL):
