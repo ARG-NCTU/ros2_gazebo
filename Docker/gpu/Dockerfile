@@ -93,7 +93,7 @@ RUN apt-get update && apt-get upgrade pip -y && \
     pexpect \
     Pillow \
     tensorboard \
-    tensorflow-cpu \
+    tensorflow \
     future
 
 ################################## torch gymnasium sb3 #####################################
