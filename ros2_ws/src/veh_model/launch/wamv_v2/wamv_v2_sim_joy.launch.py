@@ -8,7 +8,11 @@ from ament_index_python.packages import get_package_share_directory
 from launch.conditions import IfCondition
 import os
 import launch
-
+'''
+!!!
+USE CPU Docker container to run this launch file
+!!!
+'''
 
 def launch_setup(context, *args, **kwargs):
     veh = LaunchConfiguration('veh').perform(context)
