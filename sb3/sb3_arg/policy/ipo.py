@@ -1,65 +1,13 @@
-import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 import torch as th
 from torch.nn import functional as F
-from typing import Union, Type, Optional
+from typing import Optional
 from stable_baselines3 import PPO
-from stable_baselines3.common.type_aliases import RolloutBufferSamples
 from stable_baselines3.common.utils import explained_variance
-from stable_baselines3.common.policies import ActorCriticPolicy
-from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.buffers import RolloutBuffer
 from collections import namedtuple
 
-# Custom environment
-class ConstrainedCartPoleEnv(gym.Env):
-    metadata = {'render.modes': ['human']}
-    
-    def __init__(self):
-        super(ConstrainedCartPoleEnv, self).__init__()
-        self.env = gym.make('CartPole-v1')
-        self.observation_space = self.env.observation_space
-        self.action_space = self.env.action_space
-
-    def reset(self, **kwargs):
-        state, info = self.env.reset(**kwargs)
-        return state, info
-
-    def step(self, action):
-        state, reward, done, truncated, info = self.env.step(action)
-        # Calculate custom reward
-        pole_angle = state[2]
-        custom_reward = 1.0 - abs(pole_angle)  # Encourage small pole angles
-
-        # Compute multiple constraint costs
-        cart_position = state[0]
-        pole_velocity = state[3]
-
-        constraint_costs = []
-
-        # Constraint 1: Cart position between 1.0 and 2.4
-        if 1.0 <= cart_position <= 2.4:
-            constraint_costs.append(0.0)
-        else:
-            constraint_costs.append(1.0)
-
-        # Constraint 2: Pole velocity within [-1.0, 1.0]
-        if -1.0 <= pole_velocity <= 1.0:
-            constraint_costs.append(0.0)
-        else:
-            constraint_costs.append(1.0)
-
-        # Add constraint costs to info
-        info['constraint_costs'] = np.array(constraint_costs, dtype=np.float32)
-
-        return state, custom_reward, done, truncated, info
-
-    def render(self, mode='human'):
-        return self.env.render()
-
-    def close(self):
-        self.env.close()
 
 # Custom sample data structure
 ConstrainedRolloutBufferSamples = namedtuple(
@@ -160,7 +108,7 @@ class ConstrainedRolloutBuffer(RolloutBuffer):
             yield data
 
 # Custom PPO algorithm
-class ConstrainedPPO(PPO):
+class IPO(PPO):
     def __init__(
         self,
         *args,
@@ -169,7 +117,7 @@ class ConstrainedPPO(PPO):
         num_constraints=2,
         **kwargs
     ):
-        super(ConstrainedPPO, self).__init__(*args, **kwargs)
+        super(IPO, self).__init__(*args, **kwargs)
         self.constraint_threshold = constraint_threshold
         self.lambda_constraint = np.full(num_constraints, lambda_constraint, dtype=np.float32)
         self.num_constraints = num_constraints
@@ -186,7 +134,6 @@ class ConstrainedPPO(PPO):
         )
 
     def collect_rollouts(self, env, callback, rollout_buffer, n_rollout_steps):
-        # ... (same as before, with modifications for multiple constraints)
         # Initialize variables
         n_steps = 0
         rollout_buffer.reset()
@@ -333,8 +280,11 @@ class ConstrainedPPO(PPO):
         explained_var = explained_variance(
             self.rollout_buffer.values.flatten(), self.rollout_buffer.returns.flatten()
         )
-        self.logger.record("train/lambda_constraint", self.lambda_constraint)
-        self.logger.record("train/constraint_violation", average_constraints)
+        # self.logger.record("train/lambda_constraint", self.lambda_constraint)
+        # self.logger.record("train/constraint_violation", average_constraints)
+        for i in range(self.num_constraints):
+            self.logger.record(f"train/constraint_{i}_lambda", self.lambda_constraint[i])
+            self.logger.record(f"train/constraint_{i}_violations", average_constraints[i])
         self.logger.record("train/policy_loss", np.mean(pg_losses))
         self.logger.record("train/value_loss", np.mean(value_losses))
         self.logger.record("train/constraint_loss", np.mean(constraint_losses))
@@ -351,52 +301,3 @@ class ConstrainedPPO(PPO):
             r = reward + gamma * r
             discounted_returns.insert(0, r)
         return th.tensor(discounted_returns, dtype=th.float32, device=self.device)
-
-# Create the custom environment
-################################### training ###################################
-# env = ConstrainedCartPoleEnv()
-
-# # Wrap the environment
-# env = DummyVecEnv([lambda: env])
-
-# # Define the policy architecture
-# policy_kwargs = dict(
-#     activation_fn=th.nn.ReLU,
-#     net_arch=[dict(pi=[64, 64], vf=[64, 64])]
-# )
-
-# # Initialize the agent
-# model = ConstrainedPPO(
-#     policy=ActorCriticPolicy,
-#     env=env,
-#     verbose=1,
-#     policy_kwargs=policy_kwargs,
-#     constraint_threshold=0.1,
-#     lambda_constraint=0.1,
-#     num_constraints=2,  # Specify the number of constraints
-#     device='cuda',
-#     tensorboard_log="./tensorboard/"
-# )
-
-# # Train the agent
-# model.learn(total_timesteps=100000)
-# model.save("ppo_constrained_cartpole")
-# Close the environment
-# env.close()
-################################### testing ###################################
-
-model = PPO.load("ppo_constrained_cartpole")
-env = gym.make("CartPole-v1", render_mode="human")
-obs, info = env.reset()
-done = False
-while not done:
-    # Reshape obs to match the expected input shape
-    obs_input = obs.reshape(1, -1)
-    # Get action from the model
-    action, _states = model.predict(obs_input, deterministic=True)
-    # Extract scalar action
-    action = int(action[0])
-    # Step the environment with scalar action
-    obs, reward, done, truncated, info = env.step(action)
-    env.render()
-env.close()
