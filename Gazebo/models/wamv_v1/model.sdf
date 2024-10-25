@@ -784,7 +784,7 @@
         </inertial>
     </link>
     
-    <joint name="wamv/left_front_chasis_engine_joint" type="fixed">
+    <joint name="left_front_chasis_engine_joint" type="fixed">
         <axis>
             <xyz>0 0 1</xyz>
         </axis>
