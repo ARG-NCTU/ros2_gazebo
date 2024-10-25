@@ -1070,7 +1070,7 @@
         name="gz::sim::systems::JointPositionController">
         <joint_name>left_chasis_engine_joint</joint_name>
         <use_velocity_commands>true</use_velocity_commands>
-        <topic>//joint/left/thruster/cmd_pos</topic>
+        <topic>/wamv_v2/joint/left/thruster/cmd_pos</topic>
     </plugin>
 
     <plugin
@@ -1102,7 +1102,7 @@
         name="gz::sim::systems::JointPositionController">
         <joint_name>right_chasis_engine_joint</joint_name>
         <use_velocity_commands>true</use_velocity_commands>
-        <topic>//joint/right/thruster/cmd_pos</topic>
+        <topic>/wamv_v2/joint/right/thruster/cmd_pos</topic>
     </plugin>
 
     <plugin

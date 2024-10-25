@@ -36,6 +36,8 @@ def launch_setup(context, *args, **kwargs):
             f"/{veh}/joint/left_front/thruster/cmd_thrust@std_msgs/msg/Float64]ignition.msgs.Double",
             f"/{veh}/joint/right/thruster/cmd_thrust@std_msgs/msg/Float64]ignition.msgs.Double",
             f"/{veh}/joint/right_front/thruster/cmd_thrust@std_msgs/msg/Float64]ignition.msgs.Double",
+            f"/{veh}/joint/left/thruster/cmd_pos@std_msgs/msg/Float64]ignition.msgs.Double",
+            f"/{veh}/joint/right/thruster/cmd_pos@std_msgs/msg/Float64]ignition.msgs.Double",
             f"/model/{veh}/pose@geometry_msgs/msg/PoseArray[ignition.msgs.Pose_V",
         ],
         output='screen',
