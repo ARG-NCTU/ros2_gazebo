@@ -312,7 +312,11 @@ class MIPO(PPO):
     def __init__(
         self,
         *args,
-        policy_kwargs: Optional[Dict[str, Any]] = None,
+        num_constraints: int = 0,
+        alpha: float = 0.1,
+        barrier_coefficient: float = 100.0,
+        constraint_thresholds: Optional[np.ndarray] = None,
+        policy = MIPOActorCriticPolicy,
         **kwargs
     ):
         '''
@@ -326,11 +330,10 @@ class MIPO(PPO):
             constraint_thresholds: np.ndarray
                 Initial constraint thresholds
         '''
-        self.num_constraints = policy_kwargs.pop('num_constraints', 0)
-        self.alpha = policy_kwargs.pop('alpha', 0.1)
-        self.barrier_coefficient = policy_kwargs.pop('barrier_coefficient', 1.0)
-        constraint_thresholds = policy_kwargs.pop('constraint_thresholds', None)
-
+        self.num_constraints = num_constraints
+        self.alpha = alpha
+        self.barrier_coefficient = barrier_coefficient
+        constraint_thresholds = constraint_thresholds
         super(MIPO, self).__init__(*args, **kwargs)
         # Set default thresholds if not provided
         if constraint_thresholds is None:
