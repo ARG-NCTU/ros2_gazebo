@@ -441,7 +441,6 @@ class ConstrainedPPO(PPO):
         alpha: float = 0.1,
         barrier_coefficient: float = 100.0,
         constraint_thresholds: Optional[np.ndarray] = None,
-        policy = CustomActorCriticPolicy,
         **kwargs
     ):
         self.num_constraints = num_constraints
@@ -686,6 +685,8 @@ model = ConstrainedPPO(
     constraint_thresholds=np.array([0.1, 0.1]),  # Initial thresholds d_k
     barrier_coefficient=100.0,                      # Hyperparameter t
     alpha=0.02,                                   # Hyperparameter α
+    n_epochs=10,
+    ent_coef=0.01,
     policy_kwargs=policy_kwargs,
     device='cuda',
     tensorboard_log="./tensorboard/"

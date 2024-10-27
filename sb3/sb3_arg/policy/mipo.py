@@ -316,7 +316,6 @@ class MIPO(PPO):
         alpha: float = 0.1,
         barrier_coefficient: float = 100.0,
         constraint_thresholds: Optional[np.ndarray] = None,
-        policy = MIPOActorCriticPolicy,
         **kwargs
     ):
         '''
