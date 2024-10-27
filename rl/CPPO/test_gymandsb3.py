@@ -610,8 +610,8 @@ class ConstrainedPPO(PPO):
                     # To prevent log(0) or negative values, ensure the argument is positive
                     epsilon = 1e-8
                     barrier_argument = th.clamp(barrier_argument, min=epsilon)
-                    # t * log(d_k^i - J_C_k(π_i))
-                    barrier_term = self.barrier_coefficient * th.log(barrier_argument)
+                    # log(d_k^i - J_C_k(π_i)) / t
+                    barrier_term = th.log(barrier_argument)/self.barrier_coefficient
                     barrier_terms.append(barrier_term)
                 # Sum up barrier terms
                 barrier_loss = -th.sum(th.stack(barrier_terms))
@@ -681,9 +681,9 @@ model = ConstrainedPPO(
     verbose=1,
     policy_kwargs=policy_kwargs,
     constraint_thresholds=np.array([0.1, 0.1]),  # Initial thresholds d_k
-    barrier_coefficient=1.0,                      # Hyperparameter t
+    barrier_coefficient=100.0,                      # Hyperparameter t
     num_constraints=2,
-    alpha=0.1,                                    # Hyperparameter α
+    alpha=0.02,                                   # Hyperparameter α
     device='cuda',
     tensorboard_log="./tensorboard/"
 )
