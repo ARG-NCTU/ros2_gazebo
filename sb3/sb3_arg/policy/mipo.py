@@ -4,7 +4,7 @@ import numpy as np
 import torch as th
 from torch import nn
 from torch.nn import functional as F
-from typing import Optional, Union, Type, List, Dict, Tuple
+from typing import Optional, Union, Type, List, Dict, Tuple, Any
 from stable_baselines3 import PPO
 from stable_baselines3.common.utils import explained_variance
 from stable_baselines3.common.policies import ActorCriticPolicy
@@ -12,56 +12,9 @@ from stable_baselines3.common.vec_env import VecEnv
 from stable_baselines3.common.buffers import RolloutBuffer
 from collections import namedtuple
 
-class ConstrainedCartPoleEnv(gym.Env):
-    metadata = {'render.modes': ['human']}
-    
-    def __init__(self):
-        super(ConstrainedCartPoleEnv, self).__init__()
-        self.env = gym.make('CartPole-v1')
-        self.observation_space = self.env.observation_space
-        self.action_space = self.env.action_space
-
-    def reset(self, **kwargs):
-        state, info = self.env.reset(**kwargs)
-        return state, info
-
-    def step(self, action):
-        state, reward, done, truncated, info = self.env.step(action)
-        # Calculate custom reward
-        pole_angle = state[2]
-        custom_reward = 1.0 - abs(pole_angle)  # Encourage small pole angles
-
-        # Compute multiple constraint costs
-        cart_position = state[0]
-        pole_velocity = state[3]
-
-        constraint_costs = []
-
-        # Constraint 1: Cart position between 1.0 and 2.4
-        if 1.0 <= cart_position <= 2.4:
-            constraint_costs.append(0.0)
-        else:
-            constraint_costs.append(1.0)
-
-        # Constraint 2: Pole velocity within [-1.0, 1.0]
-        if -1.0 <= pole_velocity <= 1.0:
-            constraint_costs.append(0.0)
-        else:
-            constraint_costs.append(1.0)
-
-        # Add constraint costs to info
-        info['constraint_costs'] = np.array(constraint_costs, dtype=np.float32)
-
-        return state, custom_reward, done, truncated, info
-
-    def render(self, mode='human'):
-        return self.env.render()
-
-    def close(self):
-        self.env.close()
 
 # Custom policy with shared value network and multiple cost heads
-class CustomActorCriticPolicy(ActorCriticPolicy):
+class MIPOActorCriticPolicy(ActorCriticPolicy):
     def __init__(
         self,
         observation_space: gym.Space,
@@ -74,7 +27,7 @@ class CustomActorCriticPolicy(ActorCriticPolicy):
         **kwargs,
     ):
         self.num_constraints = num_constraints
-        super(CustomActorCriticPolicy, self).__init__(
+        super(MIPOActorCriticPolicy, self).__init__(
             observation_space,
             action_space,
             lr_schedule,
@@ -355,21 +308,30 @@ class ConstrainedRolloutBuffer(RolloutBuffer):
             yield data
 
 # Custom PPO algorithm implementing Modified IPO
-class IPO(PPO):
+class MIPO(PPO):
     def __init__(
         self,
         *args,
-        constraint_thresholds=None,
-        barrier_coefficient=1.0,
-        num_constraints=2,
-        alpha=0.1,
+        policy_kwargs: Optional[Dict[str, Any]] = None,
         **kwargs
     ):
-        self.num_constraints = num_constraints
-        self.alpha = alpha
-        self.barrier_coefficient = barrier_coefficient
-        constraint_thresholds = kwargs.pop('constraint_thresholds', None) or constraint_thresholds
-        super(IPO, self).__init__(*args, **kwargs)
+        '''
+        policy_kwargs:
+            num_constraints: int
+                Number of constraints
+            alpha: float
+                Constraint threshold update rate
+            barrier_coefficient: float
+                Barrier coefficient for the barrier function
+            constraint_thresholds: np.ndarray
+                Initial constraint thresholds
+        '''
+        self.num_constraints = policy_kwargs.pop('num_constraints', 0)
+        self.alpha = policy_kwargs.pop('alpha', 0.1)
+        self.barrier_coefficient = policy_kwargs.pop('barrier_coefficient', 1.0)
+        constraint_thresholds = policy_kwargs.pop('constraint_thresholds', None)
+
+        super(MIPO, self).__init__(*args, **kwargs)
         # Set default thresholds if not provided
         if constraint_thresholds is None:
             constraint_thresholds = np.array([0.1] * self.num_constraints)
@@ -387,7 +349,7 @@ class IPO(PPO):
             num_constraints=self.num_constraints,
         )
         # Ensure policy is our custom policy
-        assert isinstance(self.policy, CustomActorCriticPolicy), "Policy must be CustomActorCriticPolicy"
+        assert isinstance(self.policy, MIPOActorCriticPolicy), "Policy must be MIPOActorCriticPolicy"
 
     def collect_rollouts(self, env: VecEnv, callback, rollout_buffer, n_rollout_steps):
         self.policy.set_training_mode(False)
@@ -532,8 +494,8 @@ class IPO(PPO):
                     # To prevent log(0) or negative values, ensure the argument is positive
                     epsilon = 1e-8
                     barrier_argument = th.clamp(barrier_argument, min=epsilon)
-                    # t * log(d_k^i - J_C_k(π_i))
-                    barrier_term = self.barrier_coefficient * th.log(barrier_argument)
+                    # log(d_k^i - J_C_k(π_i)) / t
+                    barrier_term = th.log(barrier_argument)/self.barrier_coefficient
                     barrier_terms.append(barrier_term)
                 # Sum up barrier terms
                 barrier_loss = -th.sum(th.stack(barrier_terms))
@@ -575,7 +537,9 @@ class IPO(PPO):
             self.logger.record("train/entropy_loss", np.mean(entropy_losses))
             self.logger.record("train/approx_kl", np.mean(approx_kl_divs))
             self.logger.record("train/explained_variance", explained_var)
-            self.logger.record("train/dynamic_constraint_thresholds", self.dynamic_constraint_thresholds)
+            self.logger.record("train/mean_reward", np.mean(self.rollout_buffer.rewards))
+            for i in range(self.num_constraints):
+                self.logger.record(f"train/dynamic_threshold_{i}", self.dynamic_constraint_thresholds[i])
 
     def _update_learning_rate(self, optimizer):
         # Update the optimizer's learning rate
