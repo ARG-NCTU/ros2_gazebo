@@ -441,13 +441,14 @@ class ConstrainedPPO(PPO):
         alpha: float = 0.1,
         barrier_coefficient: float = 100.0,
         constraint_thresholds: Optional[np.ndarray] = None,
+        policy = CustomActorCriticPolicy,
         **kwargs
     ):
         self.num_constraints = num_constraints
         self.alpha = alpha
         self.barrier_coefficient = barrier_coefficient
         constraint_thresholds = constraint_thresholds
-        super(ConstrainedPPO, self).__init__(*args, **kwargs)
+        super(ConstrainedPPO, self).__init__(*args, policy, **kwargs)
         # Set default thresholds if not provided
         if constraint_thresholds is None:
             constraint_thresholds = np.array([0.1] * self.num_constraints)
