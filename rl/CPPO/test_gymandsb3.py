@@ -437,16 +437,13 @@ class ConstrainedPPO(PPO):
     def __init__(
         self,
         *args,
-        constraint_thresholds=None,
-        barrier_coefficient=1.0,
-        num_constraints=2,
-        alpha=0.1,
         **kwargs
     ):
-        self.num_constraints = num_constraints
-        self.alpha = alpha
-        self.barrier_coefficient = barrier_coefficient
-        constraint_thresholds = kwargs.pop('constraint_thresholds', None) or constraint_thresholds
+        self.num_constraints = policy_kwargs.pop('num_constraints', 0)
+        self.alpha = policy_kwargs.pop('alpha', 0.1)
+        self.barrier_coefficient = policy_kwargs.pop('barrier_coefficient', 1.0)
+        constraint_thresholds = policy_kwargs.pop('constraint_thresholds', None)
+
         super(ConstrainedPPO, self).__init__(*args, **kwargs)
         # Set default thresholds if not provided
         if constraint_thresholds is None:
@@ -653,7 +650,10 @@ class ConstrainedPPO(PPO):
             self.logger.record("train/entropy_loss", np.mean(entropy_losses))
             self.logger.record("train/approx_kl", np.mean(approx_kl_divs))
             self.logger.record("train/explained_variance", explained_var)
-            self.logger.record("train/dynamic_constraint_thresholds", self.dynamic_constraint_thresholds)
+            # self.logger.record("train/dynamic_constraint_thresholds", self.dynamic_constraint_thresholds)
+            self.logger.record("train/mean_reward", np.mean(self.rollout_buffer.rewards))
+            for i in range(self.num_constraints):
+                self.logger.record(f"train/dynamic_threshold_{i}", self.dynamic_constraint_thresholds[i])
 
     def _update_learning_rate(self, optimizer):
         # Update the optimizer's learning rate
@@ -672,6 +672,9 @@ policy_kwargs = dict(
     activation_fn=th.nn.ReLU,
     net_arch=[dict(pi=[64, 64], vf=[64, 64])],
     num_constraints=2,  # Pass the number of constraints to the policy
+    constraint_thresholds=np.array([0.1, 0.1]),  # Initial thresholds d_k
+    barrier_coefficient=100.0,                      # Hyperparameter t
+    alpha=0.02,                                   # Hyperparameter α
 )
 
 # Initialize the agent with updated parameters
@@ -680,16 +683,12 @@ model = ConstrainedPPO(
     env=env,
     verbose=1,
     policy_kwargs=policy_kwargs,
-    constraint_thresholds=np.array([0.1, 0.1]),  # Initial thresholds d_k
-    barrier_coefficient=100.0,                      # Hyperparameter t
-    num_constraints=2,
-    alpha=0.02,                                   # Hyperparameter α
     device='cuda',
     tensorboard_log="./tensorboard/"
 )
 
 # Train the agent
-model.learn(total_timesteps=200000)
+model.learn(total_timesteps=100000)
 model.save("ppo_constrained_cartpole")
 # Close the environment
 env.close()
