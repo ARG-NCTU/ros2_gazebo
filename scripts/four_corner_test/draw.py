@@ -5,9 +5,9 @@ import math
 # Load data from file
 positions = []
 headings = []
-square_corners = np.array([[0, 0, 0], [10, 0, 0.5], [10, 10, -0.5], [0, 10, -1.0], [0, 0, 1.0]])
+square_corners = np.array([[0, 0, 0], [10, 0, -0.5], [10, 10, 0.5], [0, 10, 1.0], [0, 0, -1.0]])
 
-with open("./wamv_v1_pose.txt") as file:
+with open("./blueboat_four.txt") as file:
     for line in file:
         if "position:" in line:
             x = float(next(file).split(":")[1])
