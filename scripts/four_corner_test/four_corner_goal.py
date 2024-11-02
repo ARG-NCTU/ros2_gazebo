@@ -12,7 +12,7 @@ class GoalPosePublisher(Node):
         # Define the subscriber to the current pose array
         self.pose_subscriber = self.create_subscription(
             PoseArray,
-            '/model/wamv_v2/pose',
+            '/model/blueboat/pose',
             self._pose_callback,
             10
         )
@@ -20,7 +20,7 @@ class GoalPosePublisher(Node):
         # Define the publisher for the goal pose
         self.goal_publisher = self.create_publisher(
             PoseStamped,
-            '/wamv_v2/goal_pose',
+            '/model/blueboat/goal_pose',
             10
         )
         
@@ -29,11 +29,25 @@ class GoalPosePublisher(Node):
         self.heading_tolerance = 0.1  # heading tolerance in radians
         
         # Initialize a list of goals with positions and headings
-        self.goals = [
+        """
+        Mission1
             {'position': (0.0, 0.0), 'heading': 0.0},
             {'position': (10.0, 0.0), 'heading': 0.5},
             {'position': (10.0, 10.0), 'heading': -0.5},
-            {'position': (0.0, 10.0), 'heading': 1.0},
+            {'position': (0.0, 10.0), 'heading': -1.0},
+            {'position': (0.0, 0.0), 'heading': 1.0},
+        Mission2
+            {'position': (0.0, 0.0), 'heading': 0.0},
+            {'position': (10.0, 0.0), 'heading': -0.5},
+            {'position': (10.0, 10.0), 'heading': 0.5},
+            {'position': (0.0, 10.0), 'heading': -1.0},
+            {'position': (0.0, 0.0), 'heading': -1.0},
+        """
+        self.goals = [
+            {'position': (0.0, 0.0), 'heading': 0.0},
+            {'position': (10.0, 0.0), 'heading': -0.5},
+            {'position': (10.0, 10.0), 'heading': 0.5},
+            {'position': (0.0, 10.0), 'heading': -1.0},
             {'position': (0.0, 0.0), 'heading': -1.0},
             # Add more goals as needed
         ]

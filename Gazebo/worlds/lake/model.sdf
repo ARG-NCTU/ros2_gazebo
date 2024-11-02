@@ -1,0 +1,250 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="lake">
+    <!-- Physics and Sensor Systems -->
+    <plugin filename="gz-sim-physics-system"
+            name="gz::sim::systems::Physics">
+    </plugin>
+    <plugin filename="gz-sim-sensors-system"
+            name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+      <background_color>0.8 0.8 0.8</background_color>
+    </plugin>
+    <plugin filename="gz-sim-scene-broadcaster-system"
+            name="gz::sim::systems::SceneBroadcaster">
+    </plugin>
+    <plugin filename="gz-sim-user-commands-system"
+            name="gz::sim::systems::UserCommands">
+    </plugin>
+    <plugin filename="gz-sim-imu-system"
+            name="gz::sim::systems::Imu">
+    </plugin>
+
+    <!-- Scene Configuration -->
+    <scene>
+      <ambient>1.0 1.0 1.0</ambient>
+      <background>0.8 0.8 0.8</background>
+      <sky></sky>
+    </scene>
+
+    <!-- Lighting -->
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.6 0.6 0.6 1</specular>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <!-- Waves Model -->
+    <model name="waves">
+      <pose>0 0 0 0 0 0</pose>
+      <static>1</static>
+
+      <!-- WavesModel Plugin -->
+      <plugin
+        filename="gz-waves1-waves-model-system"
+        name="gz::sim::systems::WavesModel">
+        <static>0</static>
+        <update_rate>30</update_rate>
+        <wave>
+          <tile_size>256.0</tile_size>
+          <cell_count>128</cell_count>
+          <algorithm>sinusoid</algorithm>
+          <amplitude>0.0</amplitude>
+          <period>1.0</period>
+          <phase>0.0</phase>
+          <steepness>0.0</steepness>
+          <direction>1 0</direction>
+        </wave>
+      </plugin>
+      
+      <link name="base_link">
+        <visual name="visual">
+          <geometry>
+            <mesh>
+              <uri>materials/mesh_L256m_N256.dae</uri>
+            </mesh>
+          </geometry>
+          <!-- 
+            Uncomment material if using DYNAMIC_GEOMETRY which uses PBS
+            rather than a custom shader
+          -->
+          <material>
+            <ambient>0.0 0.05 0.8 0.92</ambient>
+            <diffuse>0.0 0.1 0.7 0.92</diffuse>
+            <specular>0.7 0.7 0.7 0.92</specular>
+            <pbr>
+              <metal>
+                <albedo_map>materials/water.jpg</albedo_map>
+                <normal_map>materials/wave_normals.dds</normal_map>
+                <environment_map>materials/skybox_lowres.dds</environment_map>
+                <roughness>0.3</roughness>
+                <metalness>0.1</metalness>
+              </metal>
+            </pbr>
+          </material>
+          <!-- WavesVisual Plugin -->
+          <plugin
+            filename="gz-waves1-waves-visual-system"
+            name="gz::sim::systems::WavesVisual">
+            <static>0</static>
+            <mesh_deformation_method>DYNAMIC_GEOMETRY</mesh_deformation_method>
+            <tiles_x>-1 1</tiles_x>
+            <tiles_y>-1 1</tiles_y>
+            <wave>
+              <algorithm>sinusoid</algorithm>
+              <tile_size>256.0</tile_size>
+              <cell_count>128</cell_count>
+              <amplitude>0.0</amplitude>
+              <period>1.0</period>
+              <phase>0.0</phase>
+              <steepness>0.0</steepness>
+              <direction>1 0</direction>
+            </wave>
+
+            <!-- Shader Program -->
+            <shader language="glsl">
+              <vertex>materials/waves_vs.glsl</vertex>
+              <fragment>materials/waves_fs.glsl</fragment>
+            </shader>
+            <shader language="metal">
+              <vertex>materials/waves_vs.metal</vertex>
+              <fragment>materials/waves_fs.metal</fragment>
+            </shader>
+
+            <!-- Vertex Shader Parameters -->
+            <param>
+              <shader>vertex</shader>
+              <name>world_matrix</name>
+            </param>
+            <param>
+              <shader>vertex</shader>
+              <name>worldviewproj_matrix</name>
+            </param>
+            <param>
+              <shader>vertex</shader>
+              <name>camera_position</name>
+            </param>
+            <param>
+              <shader>vertex</shader>
+              <name>rescale</name>
+              <value>0.5</value>
+              <type>float</type>
+            </param>
+            <param>
+              <shader>vertex</shader>
+              <name>bumpScale</name>
+              <value>64 64</value>
+              <type>float_array</type>
+            </param>
+            <param>
+              <shader>vertex</shader>
+              <name>bumpSpeed</name>
+              <value>0.01 0.01</value>
+              <type>float_array</type>
+            </param>
+            <param>
+              <shader>vertex</shader>
+              <name>t</name>
+              <value>TIME</value>
+            </param>
+
+            <!-- Pixel Shader Parameters -->
+            <param>
+              <shader>fragment</shader>
+              <name>deepColor</name>
+              <value>0.0 0.05 0.2 1.0</value>
+              <type>float_array</type>
+            </param>
+            <param>
+              <shader>fragment</shader>
+              <name>shallowColor</name>
+              <value>0.0 0.1 0.3 1.0</value>
+              <type>float_array</type>
+            </param>
+            <param>
+              <shader>fragment</shader>
+              <name>fresnelPower</name>
+              <value>5.0</value>
+              <type>float</type>
+            </param>
+            <param>
+              <shader>fragment</shader>
+              <name>hdrMultiplier</name>
+              <value>0.4</value>
+              <type>float</type>
+            </param>
+            <param>
+              <shader>fragment</shader>
+              <name>bumpMap</name>
+              <value>materials/wave_normals.dds</value>
+              <type>texture</type>
+              <arg>0</arg>
+            </param>
+            <param>
+              <shader>fragment</shader>
+              <name>cubeMap</name>
+              <value>materials/skybox_lowres.dds</value>
+              <type>texture_cube</type>
+              <arg>1</arg>
+            </param>
+          </plugin>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Axes Model for Reference -->
+    <model name="axes">
+      <static>1</static>
+      <link name="link">
+        <visual name="r">
+          <cast_shadows>0</cast_shadows>
+          <pose>5 0 0.1 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>10 0.01 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
+            <emissive>1 0 0 1</emissive>
+            <specular>0.5 0.5 0.5 1</specular>
+          </material>
+        </visual>
+        <visual name="g">
+          <cast_shadows>0</cast_shadows>
+          <pose>0 5 0.1 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.01 10 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0 1 0 1</ambient>
+            <diffuse>0 1 0 1</diffuse>
+            <emissive>0 1 0 1</emissive>
+            <specular>0.5 0.5 0.5 1</specular>
+          </material>
+        </visual>
+        <visual name="b">
+          <cast_shadows>0</cast_shadows>
+          <pose>0 0 5.1 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.01 0.01 10</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0 0 1 1</ambient>
+            <diffuse>0 0 1 1</diffuse>
+            <emissive>0 0 1 1</emissive>
+            <specular>0.5 0.5 0.5 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>
