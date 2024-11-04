@@ -108,7 +108,7 @@ class BlueBoat_V3(gym.Env):
 
         self.vae = VAE(obs_dim=self.__obs_shape, latent_dim=self.info['latent_dim'])
         self.vae_optimizer = optim.Adam(self.vae.parameters(), lr=1e-3)
-        self.cmd_vel = np.array([1.0, 0.0, 0.0])
+        self.cmd_vel = np.array([1.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
         self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=self.__action_shape, dtype=np.float32, seed=seed)
         self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.info['latent_dim']+6, ), dtype=np.float32, seed=seed)
@@ -198,14 +198,13 @@ class BlueBoat_V3(gym.Env):
             3. reward of smooth action
         '''
         # reward of following cmd_vel
-        vec_vel = cmd_vel[:1]
-        yaw_acc = cmd_vel[2]
+        vec_vel = cmd_vel[:1] # from 0 to 1
+        ori_acc = cmd_vel[3:] # from 3 to 5
         veh_pose_diff = relative_pose_tf(self.veh.obs['pose'], self.veh.obs['last_pose'])
-        veh_vel = veh_pose_diff/self.info['period'] / self.veh.info['max_vel']
-
-        rew_ori = np.log(1+np.exp(-abs(self.veh.obs['imu'][0][6]/self.info['max_thrust'] - yaw_acc)))/np.log(2)
-        rew_vel = np.log(1+np.exp(-abs(veh_vel - vec_vel))).sum() /np.log(2)
-        rew += self.info['max_rew'] * (rew_ori + rew_vel) / 3
+        veh_vel = veh_pose_diff/self.info['period'] / self.veh.info['max_lin_velocity']
+        rew_ori = np.log(1+np.exp(-abs(self.veh.obs['imu'][0][4:7]/self.veh.info['max_ang_velocity'] - ori_acc))).sum() /np.log(2) # 3
+        rew_vel = np.log(1+np.exp(-abs(veh_vel - vec_vel))).sum() /np.log(2) # 2
+        rew += self.info['max_rew'] * (rew_ori + rew_vel) / 5
 
         # reward of save energy
         rew -= k2*np.linalg.norm(action) / self.__action_shape[0]
@@ -298,8 +297,8 @@ def quaternion_to_direction(q):
 
 # relatively pose transfer with respect to orintation
 def relative_pose_tf(pose1, pose2):
-    x, y = pose2[:1] - pose1[:1]
-    rotation_matrix = R.from_euler('z', pose1[3:]).as_matrix()[:2, :2]
+    x, y = pose2[:2] - pose1[:2]
+    rotation_matrix = R.from_euler('z', pose1[3]).as_matrix()[:2, :2]
     model_point = np.dot(rotation_matrix, np.array([x, y]))
     x_prime, y_prime = model_point
     return np.array([x_prime, y_prime])
