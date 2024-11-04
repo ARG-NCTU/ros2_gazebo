@@ -9,7 +9,7 @@ import launch
 from scipy.spatial.transform import Rotation as R
 from rclpy.node import Node
 from rosgraph_msgs.msg import Clock
-from geometry_msgs.msg import TwistStamped, Pose, Twist, Point, Quaternion, PoseStamped
+from geometry_msgs.msg import TwistStamped, Pose, Twist, Point, Quaternion, PoseStamped, PoseArray
 from sensor_msgs.msg import Imu
 from ros_gz_interfaces.srv import DeleteEntity, SpawnEntity
 from std_msgs.msg import Float32, Float64
@@ -175,11 +175,13 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
         super().__init__(orig_name=info['veh'], name=name, path=path, world=world, init_pose=pose)
         self.info['maxstep'] = info['maxstep']
         self.info['max_thrust'] = info['max_thrust']
+        self.info['max_lin_velocity'] = 3.0 # 3 m/s
+        self.info['max_ang_velocity'] = 1.25 # 1 rad/s
         self.info['hist_frame'] = info['hist_frame']
         self.info['step_cnt'] = 0
         self.sub['imu'] = self.create_subscription(Imu, f"/world/{world}/model/{name}/link/imu_link/sensor/imu_sensor/imu", self.__imu_cb, 10)
         self.sub['termination'] = self.create_subscription(Float64, f"/world/{world}/model/{name}/link/base_link/sensor/sensor_contact/contact", self.__termination_cb, 1)
-        # self.sub['clock'] = self.create_subscription(Clock, '/clock', self.__clock_cb, 10)
+        self.sub['pose'] = self.create_subscription(PoseArray, f"/model/{name}/pose", self.__pose_cb, 10)
         self.pub['cmd_vel'] = self.create_publisher(TwistStamped, f'/model/{name}/thrust_calculator/cmd_vel', 1)
 
         self.launch_service = LaunchService()
@@ -195,6 +197,7 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
                     f"/world/{world}/model/{name}/link/imu_link/sensor/imu_sensor/imu@sensor_msgs/msg/Imu[gz.msgs.IMU",
                     f"/model/{name}/joint/motor_port_joint/cmd_thrust@std_msgs/msg/Float64]gz.msgs.Double",
                     f"/model/{name}/joint/motor_stbd_joint/cmd_thrust@std_msgs/msg/Float64]gz.msgs.Double",
+                    f"/model/{name}/pose@geometry_msgs/msg/PoseArray[ignition.msgs.Pose_V",
                 ],
                 on_exit=launch.actions.Shutdown(),
             ),
@@ -218,9 +221,11 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
 
         # self.obs['action'] = Twist()
         self.obs['action'] = np.zeros((self.info['hist_frame'], 6))
-        # self.obs['pose'] = Pose()
         self.obs['imu'] = np.array([])
-        
+        self.obs['pose'] = np.array([
+            self.init_pose.position.x, self.init_pose.position.y, self.init_pose.position.z, 
+            self.init_pose.orientation.x, self.init_pose.orientation.y, self.init_pose.orientation.z, self.init_pose.orientation.w], dtype=np.float32)
+        self.obs['last_pose'] = self.obs['pose']
         self.obs['termination'] = False
         self.obs['truncation'] = False
 
@@ -237,20 +242,25 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
         super().reset()
         self.obs['action'] = np.zeros((self.info['hist_frame'], 6))
         self.obs['imu'] = np.array([])
+        self.obs['pose'] = np.array([
+            self.init_pose.position.x, self.init_pose.position.y, self.init_pose.position.z, 
+            self.init_pose.orientation.x, self.init_pose.orientation.y, self.init_pose.orientation.z, self.init_pose.orientation.w], dtype=np.float32)
+        self.obs['last_pose'] = self.obs['pose']
         self.obs['termination'] = False
         self.obs['truncation'] = False
         self.info['step_cnt'] = 0
 
     def step(self, action: TwistStamped):
         self.obs['action'] = np.roll(self.obs['action'], 1, axis=0)
-        self.obs['action'][0] = np.array(
-            [action.twist.linear.x, action.twist.linear.y, action.twist.linear.z, 
-             action.twist.angular.x, action.twist.angular.y, action.twist.angular.z]
-        )
+        self.obs['action'][0] = np.array([
+            action.twist.linear.x, action.twist.linear.y, action.twist.linear.z, 
+            action.twist.angular.x, action.twist.angular.y, action.twist.angular.z
+            ], dtype=np.float32)
         self.info['step_cnt'] += 1
         self.pub['cmd_vel'].publish(action)
         if self.info['step_cnt'] >= self.info['maxstep']:  # Corrected: self.step_cnt -> self.info['step_cnt']
             self.obs['truncation'] = True
+        self.obs['last_pose'] = self.obs['pose']
     
     def close(self):
         self.get_logger().info("Closing the service...")
@@ -277,5 +287,8 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
     def __termination_cb(self, msg):
         self.obs['termination'] = True if msg is not None else False
 
-    def __clock_cb(self, msg):
-        self.get_logger().info(f"Clock callback triggered. Current time: {msg.clock.sec + msg.clock.nanosec * 1e-9}")
+    def __pose_cb(self, msg):
+        self.obs['pose'] = np.array([
+            msg.poses[0].position.x, msg.poses[0].position.y, msg.poses[0].position.z,
+            msg.poses[0].orientation.x, msg.poses[0].orientation.y, msg.poses[0].orientation.z, msg.poses[0].orientation.w
+        ])
