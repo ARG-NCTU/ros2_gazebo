@@ -95,10 +95,16 @@ class BlueBoat_V3(gym.Env):
         ################ GYM params #################
         self.info['maxstep'] = 4096
         self.__action_shape = (6, )
-        self.__obs_shape = (
-            self.info['hist_frame']*self.__action_shape[0] + # hist action: hist cmd_vel
-            self.info['hist_frame']*10  # hist imu (ori + ang_vel + pos_acc)
-        )
+        self.__obs_shape = {
+            'imu': (hist_frame, 10),
+            'action': (hist_frame, 6),
+            'latent': self.info['latent_dim'],
+            'rl_obs': 6+self.info['latent_dim'],
+        }
+        # (
+        #     self.info['hist_frame']*self.__action_shape[0] + # hist action: hist cmd_vel
+        #     self.info['hist_frame']*10  # hist imu (ori + ang_vel + pos_acc)
+        # )
         i = 1
         tb_vae_name = f'./tb_vae/{self.info["node_name"]}_{i}'
         while os.path.exists(f'{tb_vae_name}'):
@@ -106,12 +112,12 @@ class BlueBoat_V3(gym.Env):
             tb_vae_name = f'./tb_vae/{self.info["node_name"]}_{i}'
         self.vae_writer = SummaryWriter(tb_vae_name)
 
-        self.vae = VAE(obs_dim=self.__obs_shape, latent_dim=self.info['latent_dim'])
-        self.vae_optimizer = optim.Adam(self.vae.parameters(), lr=1e-3)
+        self.vae = VAE(imu_dim=self.__obs_shape['imu'], action_dim=self.__obs_shape['action'], latent_dim=self.__obs_shape['latent'])
+        self.vae_optimizer = optim.Adam(self.vae.parameters(), lr=1e-5)
         self.cmd_vel = np.array([1.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
         self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=self.__action_shape, dtype=np.float32, seed=seed)
-        self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.info['latent_dim']+6, ), dtype=np.float32, seed=seed)
+        self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.__obs_shape['rl_obs'], ), dtype=np.float32, seed=seed)
         
         #############################################
         self.__unpause()
@@ -144,9 +150,14 @@ class BlueBoat_V3(gym.Env):
             'truncation': self.get_truncation(),
             'constraint_costs': [], # 1D array
         }
-        # smooth moving constraint
+        # # smooth moving constraint
+        # state['constraint_costs'].append(
+        #     np.linalg.norm(self.veh.obs['imu'][0][4:] - self.veh.obs['imu'][1][4:]) / 6
+        # )
+        
+        # smooth action constraint
         state['constraint_costs'].append(
-            np.linalg.norm(self.veh.obs['imu'][0][4:] - self.veh.obs['imu'][1][4:]) / 6
+            np.linalg.norm(action - self.veh.obs['action'][0]) / 6
         )
 
         # stable constraint
@@ -157,7 +168,7 @@ class BlueBoat_V3(gym.Env):
         self.veh.step(cmd_vel)
         sgn_bool = lambda x: True if x >= 0 else False
 
-        output = "\rstep:{:4d}, cmd: [x:{}, y:{}, z:{}, r:{}, p:{}, y:{}], reward:{}".format(
+        output = "\rstep:{:4d}, cmd: [x:{}, y:{}, z:{}, r:{}, p:{}, y:{}], rews: [{}, {}, {}]".format(
             self.veh.info['step_cnt'],
             " {:4.2f}".format(action[0]) if sgn_bool(action[0]) else "{:4.2f}".format(action[0]),
             " {:4.2f}".format(action[1]) if sgn_bool(action[1]) else "{:4.2f}".format(action[1]),
@@ -165,7 +176,9 @@ class BlueBoat_V3(gym.Env):
             " {:4.2f}".format(action[3]) if sgn_bool(action[3]) else "{:4.2f}".format(action[3]),
             " {:4.2f}".format(action[4]) if sgn_bool(action[4]) else "{:4.2f}".format(action[4]),
             " {:4.2f}".format(action[5]) if sgn_bool(action[5]) else "{:4.2f}".format(action[5]),
-            " {:4.2f}".format(state['reward']) if sgn_bool(state['reward']) else "{:4.2f}".format(state['reward']),
+            " {:4.2f}".format(state['reward'][0]) if sgn_bool(state['reward'][0]) else "{:4.2f}".format(state['reward'][0]),
+            " {:4.2f}".format(state['reward'][1]) if sgn_bool(state['reward'][1]) else "{:4.2f}".format(state['reward'][1]),
+            " {:4.2f}".format(state['reward'][2]) if sgn_bool(state['reward'][2]) else "{:4.2f}".format(state['reward'][2]),
         )
         sys.stdout.write(output)
         sys.stdout.flush()
@@ -173,7 +186,7 @@ class BlueBoat_V3(gym.Env):
         info = self.veh.info
         info['constraint_costs'] = np.array(state['constraint_costs'], dtype=np.float32)
         
-        return state['obs'], state['reward'], state['termination'], state['truncation'], info
+        return state['obs'], state['reward'].sum(), state['termination'], state['truncation'], info
 
     def close(self):
         self.veh.close()
@@ -185,23 +198,34 @@ class BlueBoat_V3(gym.Env):
 
     def get_observation(self, cmd_vel):
         veh_obs = self.veh.get_observation()
-        veh_obs = np.hstack((veh_obs['action'], veh_obs['imu'])).flatten()
-
-        obs_tensor = torch.FloatTensor(veh_obs).unsqueeze(0)
-        recon_obs, mu, logvar = self.vae(obs_tensor)
-        loss = vae_loss(recon_obs, obs_tensor, mu, logvar, beta=0.5)
+        # veh_obs = np.hstack((veh_obs['action'], veh_obs['imu'])).flatten()
+        
+        imu_obs = torch.FloatTensor(veh_obs['imu']).unsqueeze(0)  # Shape (1, 50, 10)
+        action_obs = torch.FloatTensor(veh_obs['action']).unsqueeze(0)  # Shape (1, 50, 6)
+        
+        imu_recon, action_recon, mu, logvar = self.vae(imu_obs.permute(0, 2, 1), action_obs.permute(0, 2, 1))  # Permute to (batch, channels, time)
+        loss = vae_loss(imu_recon, action_recon, imu_obs, action_obs, mu, logvar, beta=0.5)
         self.vae_optimizer.zero_grad()
         loss.backward()
         self.vae_writer.add_scalar('Loss/train', loss.item(), self.info['total_step'])
         self.vae_optimizer.step()
 
-        latent_obs = self.vae.encode(obs_tensor)[0].detach().numpy().flatten()
+        latent_obs = self.vae.encode(imu_obs.permute(0, 2, 1), action_obs.permute(0, 2, 1))[0].detach().numpy().flatten()
+
+        # obs_tensor = torch.FloatTensor(veh_obs).unsqueeze(0)
+        # recon_obs, mu, logvar = self.vae(obs_tensor)
+        # loss = vae_loss(recon_obs, obs_tensor, mu, logvar, beta=0.5)
+        # self.vae_optimizer.zero_grad()
+        # loss.backward()
+        # self.vae_writer.add_scalar('Loss/train', loss.item(), self.info['total_step'])
+        # self.vae_optimizer.step()
+
+        # latent_obs = self.vae.encode(obs_tensor)[0].detach().numpy().flatten()
         obs = np.hstack((self.cmd_vel, latent_obs))
 
         return obs
 
     def get_reward(self, cmd_vel, action):
-        rew = 0
         k2 = 20
         k3 = 30
         # operator = lambda x: 1 if x >= 0 else -1
@@ -219,15 +243,15 @@ class BlueBoat_V3(gym.Env):
         # rew_ori = np.log(1+np.exp(-10*abs(self.veh.obs['imu'][0][4:7]/self.veh.info['max_ang_velocity'] - ori_acc))).sum() /np.log(2) # 3
         # rew_vel = np.log(1+np.exp(-10*abs(veh_vel - vec_vel))).sum() /np.log(2) # 2
         # rew += self.info['max_rew'] * (2*(rew_ori + rew_vel) / 5 -1)
-        rew += self.info['max_rew']*np.log(1+np.exp(-10*(vec_vel - action)**2)).sum() /6 /np.log(2)
+        rew1 = self.info['max_rew']*(2*np.log(1+np.exp(-10*(vec_vel - action)**2)).sum() /6 /np.log(2) -1)
 
         # reward of save energy
-        rew -= k2*np.linalg.norm(action) / self.__action_shape[0]
+        rew2 = -k2*np.linalg.norm(action) / self.__action_shape[0]
 
         # reward of smooth action
-        rew -= k3*np.linalg.norm(self.veh.obs['action'][0] - self.action) / self.__action_shape[0]
+        rew3 = -k3*np.linalg.norm(self.veh.obs['action'][0] - self.action) / self.__action_shape[0]
 
-        return rew/self.info['max_rew']
+        return np.array([rew1, rew2, rew3])/self.info['max_rew']
     
     def get_termination(self):
         return self.veh.obs['termination']
