@@ -511,7 +511,7 @@ class MIPO(PPO):
                     entropy_loss = -entropy.mean()
 
                 # Total loss
-                loss = - (policy_loss + self.vf_coef * value_loss + self.vf_coef * cost_value_loss + barrier_loss + self.ent_coef * entropy_loss)
+                loss = policy_loss + self.vf_coef * value_loss + self.vf_coef * cost_value_loss + barrier_loss + self.ent_coef * entropy_loss
 
                 # Optimization step
                 self.policy.optimizer.zero_grad()

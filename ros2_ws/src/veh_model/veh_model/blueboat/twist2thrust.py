@@ -55,8 +55,8 @@ class ThrustCalculatorNode(Node):
         self.stbd_thrust_publisher.publish(stbd_thrust_msg)
 
         # Log the results for debugging
-        self.get_logger().info(
-            f'Port Thrust: {T_P:.4f} N, Starboard Thrust: {T_S:.4f} N')
+        # self.get_logger().info(
+        #     f'Port Thrust: {T_P:.4f} N, Starboard Thrust: {T_S:.4f} N')
 
 def main(args=None):
     rclpy.init(args=args)
