@@ -19,7 +19,7 @@ env = DummyVecEnv([lambda: env])
 
 policy_kwargs = dict(
     activation_fn=th.nn.ReLU,
-    net_arch=[dict(pi=[64, 64], vf=[64, 64])],
+    net_arch=[dict(pi=[128, 128, 64], vf=[128, 128, 64])],
 )
 
 today = date.today()

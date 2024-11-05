@@ -94,7 +94,7 @@ class BlueBoat_V3(gym.Env):
         self.excutor_thread.start()
         ################ GYM params #################
         self.info['maxstep'] = 4096
-        self.__action_shape = (6, )
+        self.__action_shape = (2, )
         self.__obs_shape = {
             'imu': (hist_frame, 10),
             'action': (hist_frame, 6),
@@ -137,11 +137,17 @@ class BlueBoat_V3(gym.Env):
         cmd_vel = TwistStamped()
         cmd_vel.header.stamp = self.node.get_clock().now().to_msg()
         cmd_vel.twist.linear.x = float(action[0])
-        cmd_vel.twist.linear.y = float(action[1])
-        cmd_vel.twist.linear.z = float(action[2])
-        cmd_vel.twist.angular.x = float(action[3])
-        cmd_vel.twist.angular.y = float(action[4])
-        cmd_vel.twist.angular.z = float(action[5])
+        cmd_vel.twist.linear.y = 0.0
+        cmd_vel.twist.linear.z = 0.0
+        cmd_vel.twist.angular.x = 0.0
+        cmd_vel.twist.angular.y = 0.0
+        cmd_vel.twist.angular.z = float(action[1])
+        # cmd_vel.twist.linear.x = float(action[0])
+        # cmd_vel.twist.linear.y = float(action[1])
+        # cmd_vel.twist.linear.z = float(action[2])
+        # cmd_vel.twist.angular.x = float(action[3])
+        # cmd_vel.twist.angular.y = float(action[4])
+        # cmd_vel.twist.angular.z = float(action[5])
 
         state = {
             'obs': self.get_observation(action),  # Using latent representation as the observation
@@ -157,7 +163,7 @@ class BlueBoat_V3(gym.Env):
         
         # smooth action constraint
         state['constraint_costs'].append(
-            np.linalg.norm(action - self.veh.obs['action'][0]) / 6
+            np.linalg.norm(action - np.array([self.veh.obs['action'][0][0], self.veh.obs['action'][0][-1]])) / self.__action_shape[0]
         )
 
         # stable constraint
@@ -168,14 +174,14 @@ class BlueBoat_V3(gym.Env):
         self.veh.step(cmd_vel)
         sgn_bool = lambda x: True if x >= 0 else False
 
-        output = "\rstep:{:4d}, cmd: [x:{}, y:{}, z:{}, r:{}, p:{}, y:{}], rews: [{}, {}, {}]".format(
+        output = "\rstep:{:4d}, cmd: [x:{}, yaw:{}], rews: [{}, {}, {}]".format(
             self.veh.info['step_cnt'],
             " {:4.2f}".format(action[0]) if sgn_bool(action[0]) else "{:4.2f}".format(action[0]),
             " {:4.2f}".format(action[1]) if sgn_bool(action[1]) else "{:4.2f}".format(action[1]),
-            " {:4.2f}".format(action[2]) if sgn_bool(action[2]) else "{:4.2f}".format(action[2]),
-            " {:4.2f}".format(action[3]) if sgn_bool(action[3]) else "{:4.2f}".format(action[3]),
-            " {:4.2f}".format(action[4]) if sgn_bool(action[4]) else "{:4.2f}".format(action[4]),
-            " {:4.2f}".format(action[5]) if sgn_bool(action[5]) else "{:4.2f}".format(action[5]),
+            # " {:4.2f}".format(action[2]) if sgn_bool(action[2]) else "{:4.2f}".format(action[2]),
+            # " {:4.2f}".format(action[3]) if sgn_bool(action[3]) else "{:4.2f}".format(action[3]),
+            # " {:4.2f}".format(action[4]) if sgn_bool(action[4]) else "{:4.2f}".format(action[4]),
+            # " {:4.2f}".format(action[5]) if sgn_bool(action[5]) else "{:4.2f}".format(action[5]),
             " {:4.2f}".format(state['reward'][0]) if sgn_bool(state['reward'][0]) else "{:4.2f}".format(state['reward'][0]),
             " {:4.2f}".format(state['reward'][1]) if sgn_bool(state['reward'][1]) else "{:4.2f}".format(state['reward'][1]),
             " {:4.2f}".format(state['reward'][2]) if sgn_bool(state['reward'][2]) else "{:4.2f}".format(state['reward'][2]),
@@ -249,7 +255,7 @@ class BlueBoat_V3(gym.Env):
         rew2 = -k2*np.linalg.norm(action) / self.__action_shape[0]
 
         # reward of smooth action
-        rew3 = -k3*np.linalg.norm(self.veh.obs['action'][0] - self.action) / self.__action_shape[0]
+        rew3 = -k3*np.linalg.norm(np.array([self.veh.obs['action'][0][0], self.veh.obs['action'][0][-1]]) - self.action) / self.__action_shape[0]
 
         return np.array([rew1, rew2, rew3])/self.info['max_rew']
     
