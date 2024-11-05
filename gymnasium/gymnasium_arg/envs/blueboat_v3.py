@@ -155,6 +155,20 @@ class BlueBoat_V3(gym.Env):
         )
 
         self.veh.step(cmd_vel)
+        sgn_bool = lambda x: True if x >= 0 else False
+
+        output = "\rstep:{:4d}, cmd: [x:{}, y:{}, z:{}, r:{}, p:{}, y:{}], reward:{}".format(
+            self.veh.info['step_cnt'],
+            " {:4.2f}".format(action[0]) if sgn_bool(action[0]) else "{:4.2f}".format(action[0]),
+            " {:4.2f}".format(action[1]) if sgn_bool(action[1]) else "{:4.2f}".format(action[1]),
+            " {:4.2f}".format(action[2]) if sgn_bool(action[2]) else "{:4.2f}".format(action[2]),
+            " {:4.2f}".format(action[3]) if sgn_bool(action[3]) else "{:4.2f}".format(action[3]),
+            " {:4.2f}".format(action[4]) if sgn_bool(action[4]) else "{:4.2f}".format(action[4]),
+            " {:4.2f}".format(action[5]) if sgn_bool(action[5]) else "{:4.2f}".format(action[5]),
+            " {:4.2f}".format(state['reward']) if sgn_bool(state['reward']) else "{:4.2f}".format(state['reward']),
+        )
+        sys.stdout.write(output)
+        sys.stdout.flush()
 
         info = self.veh.info
         info['constraint_costs'] = np.array(state['constraint_costs'], dtype=np.float32)
@@ -188,8 +202,8 @@ class BlueBoat_V3(gym.Env):
 
     def get_reward(self, cmd_vel, action):
         rew = 0
-        k2 = 5
-        k3 = 8
+        k2 = 20
+        k3 = 30
         # operator = lambda x: 1 if x >= 0 else -1
         # sigmoid = lambda x: 1/(1+np.exp(-x))
         '''
@@ -200,11 +214,12 @@ class BlueBoat_V3(gym.Env):
         # reward of following cmd_vel
         vec_vel = cmd_vel[:1] # from 0 to 1
         ori_acc = cmd_vel[3:] # from 3 to 5
-        veh_pose_diff = relative_pose_tf(self.veh.obs['pose'], self.veh.obs['last_pose'])
-        veh_vel = veh_pose_diff/self.info['period'] / self.veh.info['max_lin_velocity']
-        rew_ori = np.log(1+np.exp(-abs(self.veh.obs['imu'][0][4:7]/self.veh.info['max_ang_velocity'] - ori_acc))).sum() /np.log(2) # 3
-        rew_vel = np.log(1+np.exp(-abs(veh_vel - vec_vel))).sum() /np.log(2) # 2
-        rew += self.info['max_rew'] * (rew_ori + rew_vel) / 5
+        # veh_pose_diff = relative_pose_tf(self.veh.obs['pose'], self.veh.obs['last_pose'])
+        # veh_vel = veh_pose_diff/self.info['period'] / self.veh.info['max_lin_velocity']
+        # rew_ori = np.log(1+np.exp(-10*abs(self.veh.obs['imu'][0][4:7]/self.veh.info['max_ang_velocity'] - ori_acc))).sum() /np.log(2) # 3
+        # rew_vel = np.log(1+np.exp(-10*abs(veh_vel - vec_vel))).sum() /np.log(2) # 2
+        # rew += self.info['max_rew'] * (2*(rew_ori + rew_vel) / 5 -1)
+        rew += self.info['max_rew']*np.log(1+np.exp(-10*(vec_vel - action)**2)).sum() /6 /np.log(2)
 
         # reward of save energy
         rew -= k2*np.linalg.norm(action) / self.__action_shape[0]
