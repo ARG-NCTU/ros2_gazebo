@@ -151,25 +151,10 @@ class BlueBoat_V3(gym.Env):
 
         state = {
             'obs': self.get_observation(action),  # Using latent representation as the observation
-            'reward': self.get_reward(self.cmd_vel, action),
             'termination': self.get_termination(),
             'truncation': self.get_truncation(),
-            'constraint_costs': [], # 1D array
         }
-        # # smooth moving constraint
-        # state['constraint_costs'].append(
-        #     np.linalg.norm(self.veh.obs['imu'][0][4:] - self.veh.obs['imu'][1][4:]) / 6
-        # )
-        
-        # smooth action constraint
-        state['constraint_costs'].append(
-            np.linalg.norm(action - np.array([self.veh.obs['action'][0][0], self.veh.obs['action'][0][-1]])) / self.__action_shape[0]
-        )
-
-        # stable constraint
-        state['constraint_costs'].append(
-            np.linalg.norm(self.veh.obs['imu'][0][:1]) / 2
-        )
+        state['reward'], state['constraint_costs'] = self.get_reward_constraint(self.cmd_vel, action)
 
         self.veh.step(cmd_vel)
         sgn_bool = lambda x: True if x >= 0 else False
@@ -231,9 +216,9 @@ class BlueBoat_V3(gym.Env):
 
         return obs
 
-    def get_reward(self, cmd_vel, action):
-        k2 = 20
-        k3 = 30
+    def get_reward_constraint(self, cmd_vel, action):
+        k2 = 10
+        k3 = 50
         # operator = lambda x: 1 if x >= 0 else -1
         # sigmoid = lambda x: 1/(1+np.exp(-x))
         '''
@@ -244,20 +229,42 @@ class BlueBoat_V3(gym.Env):
         # reward of following cmd_vel
         vec_vel = cmd_vel[:1] # from 0 to 1
         ori_acc = cmd_vel[3:] # from 3 to 5
-        # veh_pose_diff = relative_pose_tf(self.veh.obs['pose'], self.veh.obs['last_pose'])
-        # veh_vel = veh_pose_diff/self.info['period'] / self.veh.info['max_lin_velocity']
-        # rew_ori = np.log(1+np.exp(-10*abs(self.veh.obs['imu'][0][4:7]/self.veh.info['max_ang_velocity'] - ori_acc))).sum() /np.log(2) # 3
-        # rew_vel = np.log(1+np.exp(-10*abs(veh_vel - vec_vel))).sum() /np.log(2) # 2
-        # rew += self.info['max_rew'] * (2*(rew_ori + rew_vel) / 5 -1)
-        rew1 = self.info['max_rew']*(2*np.log(1+np.exp(-10*(vec_vel - action)**2)).sum() /self.__action_shape[0] /np.log(2) -1)
+        veh_pose_diff = relative_pose_tf(self.veh.obs['pose'], self.veh.obs['last_pose'])
+        veh_vel = veh_pose_diff/self.info['period'] / self.veh.info['max_lin_velocity']
+        rew_vel = np.log(1+np.exp(-10*abs(veh_vel - vec_vel)))/np.log(2) # 2
+        rew_ori = np.log(1+np.exp(-10*abs(self.veh.obs['imu'][0][4:7]/self.veh.info['max_ang_velocity'] - ori_acc)))/np.log(2) # 3
+        rew1 = self.info['max_rew']*(2*(np.hstack((rew_ori, rew_vel)))-1).sum() / 5
+        # rew1 = self.info['max_rew']*(2*np.log(1+np.exp(-10*(vec_vel - action)**2))/np.log(2) -1).sum() /self.__action_shape[0]
 
         # reward of save energy
-        rew2 = -k2*np.linalg.norm(action) / self.__action_shape[0]
+        rew2 = -k2*np.linalg.norm(action, ord=1) / self.__action_shape[0]
 
         # reward of smooth action
-        rew3 = -k3*np.linalg.norm(np.array([self.veh.obs['action'][0][0], self.veh.obs['action'][0][-1]]) - self.action) / self.__action_shape[0]
+        rew3 = -k3*np.linalg.norm(np.array([self.veh.obs['action'][0][0] - self.action[0], self.veh.obs['action'][0][-1] - self.action[1] ]), ord=1) / self.__action_shape[0]
 
-        return np.array([rew1, rew2, rew3])/self.info['max_rew']
+        ###################### constraint ######################
+        const = []
+        # # smooth moving constraint
+        # state['constraint_costs'].append(
+        #     np.linalg.norm(self.veh.obs['imu'][0][4:] - self.veh.obs['imu'][1][4:]) / 6
+        # )
+        
+        # smooth action constraint
+        # state['constraint_costs'].append(
+        #     np.linalg.norm(action - np.array([self.veh.obs['action'][0][0], self.veh.obs['action'][0][-1]]), ord=1) / self.__action_shape[0]
+        # )
+
+        # verticle moving constraint
+        const.append(
+            abs(self.veh.obs['imu'][0][9] - self.veh.obs['imu'][1][9]) / 10
+        )
+
+        # stable constraint
+        const.append(
+            np.linalg.norm(self.veh.obs['imu'][0][:1], ord=1) / 2
+        )
+
+        return np.array([rew1, rew2, rew3])/self.info['max_rew'], const
     
     def get_termination(self):
         return self.veh.obs['termination']
