@@ -2,6 +2,10 @@
 <sdf version="1.6">
   <world name="lake">
     <!-- Physics and Sensor Systems -->
+    <physics type="default">
+      <real_time_update_rate>0</real_time_update_rate>
+      <max_step_size>0.001</max_step_size>
+    </physics>
     <plugin filename="gz-sim-physics-system"
             name="gz::sim::systems::Physics">
     </plugin>
@@ -77,58 +81,5 @@
         <!-- WavesVisual Plugin Removed -->
       </link>
     </model>
-
-    <!-- Axes Model for Reference -->
-    <model name="axes">
-      <static>1</static>
-      <link name="link">
-        <visual name="r">
-          <cast_shadows>0</cast_shadows>
-          <pose>5 0 0.1 0 0 0</pose>
-          <geometry>
-            <box>
-              <size>10 0.01 0.01</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>1 0 0 1</ambient>
-            <diffuse>1 0 0 1</diffuse>
-            <emissive>1 0 0 1</emissive>
-            <specular>0.5 0.5 0.5 1</specular>
-          </material>
-        </visual>
-        <visual name="g">
-          <cast_shadows>0</cast_shadows>
-          <pose>0 5 0.1 0 0 0</pose>
-          <geometry>
-            <box>
-              <size>0.01 10 0.01</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>0 1 0 1</ambient>
-            <diffuse>0 1 0 1</diffuse>
-            <emissive>0 1 0 1</emissive>
-            <specular>0.5 0.5 0.5 1</specular>
-          </material>
-        </visual>
-        <visual name="b">
-          <cast_shadows>0</cast_shadows>
-          <pose>0 0 5.1 0 0 0</pose>
-          <geometry>
-            <box>
-              <size>0.01 0.01 10</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>0 0 1 1</ambient>
-            <diffuse>0 0 1 1</diffuse>
-            <emissive>0 0 1 1</emissive>
-            <specular>0.5 0.5 0.5 1</specular>
-          </material>
-        </visual>
-      </link>
-    </model>
-
   </world>
 </sdf>

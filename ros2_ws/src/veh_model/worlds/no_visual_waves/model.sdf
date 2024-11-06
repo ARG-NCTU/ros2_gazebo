@@ -2,6 +2,10 @@
 <sdf version="1.6">
   <world name="waves">
     <!-- Physics and Sensor Systems -->
+    <physics type="default">
+      <real_time_update_rate>0</real_time_update_rate>
+      <max_step_size>0.001</max_step_size>
+    </physics>
     <plugin filename="gz-sim-physics-system"
             name="gz::sim::systems::Physics">
     </plugin>
