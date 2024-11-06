@@ -249,7 +249,7 @@ class BlueBoat_V3(gym.Env):
         # rew_ori = np.log(1+np.exp(-10*abs(self.veh.obs['imu'][0][4:7]/self.veh.info['max_ang_velocity'] - ori_acc))).sum() /np.log(2) # 3
         # rew_vel = np.log(1+np.exp(-10*abs(veh_vel - vec_vel))).sum() /np.log(2) # 2
         # rew += self.info['max_rew'] * (2*(rew_ori + rew_vel) / 5 -1)
-        rew1 = self.info['max_rew']*(2*np.log(1+np.exp(-10*(vec_vel - action)**2)).sum() /6 /np.log(2) -1)
+        rew1 = self.info['max_rew']*(2*np.log(1+np.exp(-10*(vec_vel - action)**2)).sum() /self.__action_shape[0] /np.log(2) -1)
 
         # reward of save energy
         rew2 = -k2*np.linalg.norm(action) / self.__action_shape[0]
