@@ -12,7 +12,12 @@ import launch
 def launch_setup(context, *args, **kwargs):
     # Retrieve the values of the arguments at runtime
     world = LaunchConfiguration('world').perform(context)
-
+    visual = LaunchConfiguration('visual').perform(context)
+    file = "./"
+    if visual == 'no_visual':
+        file = f"no_visual_{world}/model.sdf"
+    else:
+        file = f"./{world}.sdf"
     pkg_project_gazebo = get_package_share_directory("veh_model")
     pkg_ros_gz_sim = get_package_share_directory("ros_gz_sim")
 
@@ -20,7 +25,7 @@ def launch_setup(context, *args, **kwargs):
     gz_sim_server = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([pkg_ros_gz_sim, "/launch/gz_sim.launch.py"]),
         launch_arguments={
-            "gz_args": f"-v4 -s -r {pkg_project_gazebo}/worlds/{world}.sdf"
+            "gz_args": f"-v4 -s -r {pkg_project_gazebo}/worlds/{file}"
         }.items(),
     )
 
@@ -53,6 +58,9 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument(
             'world', default_value='waves', description='World to launch'
+        ),
+        DeclareLaunchArgument(
+            'visual', default_value='no_visual', description='World without visual'
         ),
         DeclareLaunchArgument(
             'gz_gui', default_value='true', description='Launch GZ GUI'

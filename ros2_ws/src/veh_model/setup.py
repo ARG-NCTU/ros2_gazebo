@@ -12,6 +12,10 @@ launch_data_files = [
     (os.path.join('share', package_name, root), [os.path.join(root, f) for f in files if f.endswith('.launch.py')])
     for root, dirs, files in os.walk('launch')
 ]
+world_data_files = [
+    (os.path.join('share', package_name, root), [os.path.join(root, f) for f in files])
+    for root, dirs, files in os.walk('worlds')
+]
 setup(
     name=package_name,
     version='0.0.0',
@@ -20,11 +24,8 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-
-        (os.path.join('share', package_name, 'worlds'),
-            glob(os.path.join('worlds', '*.sdf'))),
         
-    ] + model_data_files + launch_data_files,
+    ] + model_data_files + launch_data_files + world_data_files,
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='root',
