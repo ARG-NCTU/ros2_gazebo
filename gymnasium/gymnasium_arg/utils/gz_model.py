@@ -234,6 +234,9 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
         while self.obs['imu'].shape != (self.info['hist_frame'], 10):
             # print(f"Waiting for {self.info['name']} imu...")
             pass
+        while self.obs['pose'].shape != (self.info['hist_frame'], 7):
+            # print(f"Waiting for {self.info['name']} pose...")
+            pass
         return self.obs
     
     def reset(self):
@@ -296,7 +299,7 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
         else:
             self.obs['pose'] = np.roll(self.obs['pose'], 1, axis=0)
             self.obs['pose'][0] = pose
-            
+
         # self.obs['pose'] = np.array([
         #     msg.poses[0].position.x, msg.poses[0].position.y, msg.poses[0].position.z,
         #     msg.poses[0].orientation.x, msg.poses[0].orientation.y, msg.poses[0].orientation.z, msg.poses[0].orientation.w

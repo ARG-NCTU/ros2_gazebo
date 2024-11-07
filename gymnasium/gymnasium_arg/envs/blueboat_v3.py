@@ -172,10 +172,6 @@ class BlueBoat_V3(gym.Env):
             self.veh.info['step_cnt'],
             " {:4.2f}".format(action[0]) if sgn_bool(action[0]) else "{:4.2f}".format(action[0]),
             " {:4.2f}".format(action[1]) if sgn_bool(action[1]) else "{:4.2f}".format(action[1]),
-            # " {:4.2f}".format(action[2]) if sgn_bool(action[2]) else "{:4.2f}".format(action[2]),
-            # " {:4.2f}".format(action[3]) if sgn_bool(action[3]) else "{:4.2f}".format(action[3]),
-            # " {:4.2f}".format(action[4]) if sgn_bool(action[4]) else "{:4.2f}".format(action[4]),
-            # " {:4.2f}".format(action[5]) if sgn_bool(action[5]) else "{:4.2f}".format(action[5]),
             " {:4.2f}".format(state['reward'][0]) if sgn_bool(state['reward'][0]) else "{:4.2f}".format(state['reward'][0]),
             " {:4.2f}".format(state['reward'][1]) if sgn_bool(state['reward'][1]) else "{:4.2f}".format(state['reward'][1]),
             " {:4.2f}".format(state['reward'][2]) if sgn_bool(state['reward'][2]) else "{:4.2f}".format(state['reward'][2]),
@@ -203,21 +199,6 @@ class BlueBoat_V3(gym.Env):
 
     def get_observation(self, cmd_vel):
         veh_obs = self.veh.get_observation()
-        # veh_obs = np.hstack((veh_obs['action'], veh_obs['imu'])).flatten()
-        
-        # imu_obs = torch.FloatTensor(veh_obs['imu']).unsqueeze(0)  # Shape (1, 50, 10)
-        # action_obs = torch.FloatTensor(veh_obs['action']).unsqueeze(0)  # Shape (1, 50, 6)
-        
-        # imu_recon, action_recon, mu, logvar = self.vae(imu_obs.permute(0, 2, 1), action_obs.permute(0, 2, 1))  # Permute to (batch, channels, time)
-        # loss = vae_loss(imu_recon, action_recon, imu_obs, action_obs, mu, logvar, beta=0.5)
-        # self.vae_optimizer.zero_grad()
-        # loss.backward()
-        # self.vae_writer.add_scalar('Loss/train', loss.item(), self.info['total_step'])
-        # self.vae_optimizer.step()
-
-        # latent_obs = self.vae.encode(imu_obs.permute(0, 2, 1), action_obs.permute(0, 2, 1))[0].detach().numpy().flatten()
-        # obs = np.hstack((self.cmd_vel, latent_obs))
-
         imu_obs = veh_obs['imu'].flatten()
         action_obs = veh_obs['action'].flatten()
         # cmd_obs = np.array([self.cmd_vel[0], self.cmd_vel[1], self.cmd_vel[2], self.cmd_vel[3], self.cmd_vel[4], self.cmd_vel[5]])
