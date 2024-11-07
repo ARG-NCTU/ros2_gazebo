@@ -99,25 +99,33 @@ class BlueBoat_V3(gym.Env):
             'imu': (hist_frame, 10),
             'action': (hist_frame, 6),
             'latent': self.info['latent_dim'],
-            'rl_obs': 6+self.info['latent_dim'],
+            # 'rl_obs': 6+self.info['latent_dim'],
+            'cmd_vel': (6, ),
         }
         # (
         #     self.info['hist_frame']*self.__action_shape[0] + # hist action: hist cmd_vel
         #     self.info['hist_frame']*10  # hist imu (ori + ang_vel + pos_acc)
         # )
-        i = 1
-        tb_vae_name = f'./tb_vae/{self.info["node_name"]}_{i}'
-        while os.path.exists(f'{tb_vae_name}'):
-            i += 1
-            tb_vae_name = f'./tb_vae/{self.info["node_name"]}_{i}'
-        self.vae_writer = SummaryWriter(tb_vae_name)
+        # i = 1
+        # tb_vae_name = f'./tb_vae/{self.info["node_name"]}_{i}'
+        # while os.path.exists(f'{tb_vae_name}'):
+        #     i += 1
+        #     tb_vae_name = f'./tb_vae/{self.info["node_name"]}_{i}'
+        # self.vae_writer = SummaryWriter(tb_vae_name)
 
-        self.vae = VAE(imu_dim=self.__obs_shape['imu'], action_dim=self.__obs_shape['action'], latent_dim=self.__obs_shape['latent'])
-        self.vae_optimizer = optim.Adam(self.vae.parameters(), lr=1e-5)
+        # self.vae = VAE(imu_dim=self.__obs_shape['imu'], action_dim=self.__obs_shape['action'], latent_dim=self.__obs_shape['latent'])
+        # self.vae_optimizer = optim.Adam(self.vae.parameters(), lr=1e-5)
         self.cmd_vel = np.array([1.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
         self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=self.__action_shape, dtype=np.float32, seed=seed)
-        self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.__obs_shape['rl_obs'], ), dtype=np.float32, seed=seed)
+        self.observation_space = gym.spaces.Box(
+            low=-np.inf,
+            high=np.inf,
+            shape=(np.prod(self.__obs_shape['imu'])+np.prod(self.__obs_shape['action'])+np.prod(self.__obs_shape['cmd_vel']),),
+            dtype=np.float32,
+            seed=seed
+        )
+        # gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.__obs_shape['rl_obs'], ), dtype=np.float32, seed=seed)
         
         #############################################
         self.__unpause()
@@ -149,6 +157,8 @@ class BlueBoat_V3(gym.Env):
         # cmd_vel.twist.angular.y = float(action[4])
         # cmd_vel.twist.angular.z = float(action[5])
 
+        self.veh.step(cmd_vel)
+
         state = {
             'obs': self.get_observation(action),  # Using latent representation as the observation
             'termination': self.get_termination(),
@@ -156,7 +166,6 @@ class BlueBoat_V3(gym.Env):
         }
         state['reward'], state['constraint_costs'] = self.get_reward_constraint(self.cmd_vel, action)
 
-        self.veh.step(cmd_vel)
         sgn_bool = lambda x: True if x >= 0 else False
 
         output = "\rstep:{:4d}, cmd: [x:{}, yaw:{}], rews: [{}, {}, {}]".format(
@@ -180,40 +189,39 @@ class BlueBoat_V3(gym.Env):
         return state['obs'], state['reward'].sum(), state['termination'], state['truncation'], info
 
     def close(self):
+    # Stop the executor thread before shutting down nodes
+        if self.excutor_thread.is_alive():
+            self.excutor.shutdown()
+            self.excutor_thread.join()  # Wait for the thread to finish
+
         self.veh.close()
-        self.vae_writer.close()
+        # If you have commented out self.vae_writer, ensure it's not called
+        # self.vae_writer.close()
         self.node.destroy_node()
         self.clock.destroy_node()
-        self.excutor.shutdown()
         rclpy.shutdown()
 
     def get_observation(self, cmd_vel):
         veh_obs = self.veh.get_observation()
         # veh_obs = np.hstack((veh_obs['action'], veh_obs['imu'])).flatten()
         
-        imu_obs = torch.FloatTensor(veh_obs['imu']).unsqueeze(0)  # Shape (1, 50, 10)
-        action_obs = torch.FloatTensor(veh_obs['action']).unsqueeze(0)  # Shape (1, 50, 6)
+        # imu_obs = torch.FloatTensor(veh_obs['imu']).unsqueeze(0)  # Shape (1, 50, 10)
+        # action_obs = torch.FloatTensor(veh_obs['action']).unsqueeze(0)  # Shape (1, 50, 6)
         
-        imu_recon, action_recon, mu, logvar = self.vae(imu_obs.permute(0, 2, 1), action_obs.permute(0, 2, 1))  # Permute to (batch, channels, time)
-        loss = vae_loss(imu_recon, action_recon, imu_obs, action_obs, mu, logvar, beta=0.5)
-        self.vae_optimizer.zero_grad()
-        loss.backward()
-        self.vae_writer.add_scalar('Loss/train', loss.item(), self.info['total_step'])
-        self.vae_optimizer.step()
-
-        latent_obs = self.vae.encode(imu_obs.permute(0, 2, 1), action_obs.permute(0, 2, 1))[0].detach().numpy().flatten()
-
-        # obs_tensor = torch.FloatTensor(veh_obs).unsqueeze(0)
-        # recon_obs, mu, logvar = self.vae(obs_tensor)
-        # loss = vae_loss(recon_obs, obs_tensor, mu, logvar, beta=0.5)
+        # imu_recon, action_recon, mu, logvar = self.vae(imu_obs.permute(0, 2, 1), action_obs.permute(0, 2, 1))  # Permute to (batch, channels, time)
+        # loss = vae_loss(imu_recon, action_recon, imu_obs, action_obs, mu, logvar, beta=0.5)
         # self.vae_optimizer.zero_grad()
         # loss.backward()
         # self.vae_writer.add_scalar('Loss/train', loss.item(), self.info['total_step'])
         # self.vae_optimizer.step()
 
-        # latent_obs = self.vae.encode(obs_tensor)[0].detach().numpy().flatten()
-        obs = np.hstack((self.cmd_vel, latent_obs))
+        # latent_obs = self.vae.encode(imu_obs.permute(0, 2, 1), action_obs.permute(0, 2, 1))[0].detach().numpy().flatten()
+        # obs = np.hstack((self.cmd_vel, latent_obs))
 
+        imu_obs = veh_obs['imu'].flatten()
+        action_obs = veh_obs['action'].flatten()
+        # cmd_obs = np.array([self.cmd_vel[0], self.cmd_vel[1], self.cmd_vel[2], self.cmd_vel[3], self.cmd_vel[4], self.cmd_vel[5]])
+        obs = np.concatenate([imu_obs, action_obs, self.cmd_vel])
         return obs
 
     def get_reward_constraint(self, cmd_vel, action):
@@ -221,6 +229,7 @@ class BlueBoat_V3(gym.Env):
         k3 = 50
         # operator = lambda x: 1 if x >= 0 else -1
         # sigmoid = lambda x: 1/(1+np.exp(-x))
+        # relu = lambda x: x if x >= 0 else 0
         '''
             1. reward of following cmd_vel
             2. reward of save energy
@@ -229,18 +238,20 @@ class BlueBoat_V3(gym.Env):
         # reward of following cmd_vel
         vec_vel = cmd_vel[:1] # from 0 to 1
         ori_acc = cmd_vel[3:] # from 3 to 5
-        veh_pose_diff = relative_pose_tf(self.veh.obs['pose'], self.veh.obs['last_pose'])
-        veh_vel = veh_pose_diff/self.info['period'] / self.veh.info['max_lin_velocity']
+
+        local_pose_diff = relative_pose_tf(self.veh.obs['pose'][0], self.veh.obs['pose'][10])
+        veh_vel = local_pose_diff/(self.info['period']*10) / self.veh.info['max_lin_velocity']
         rew_vel = np.log(1+np.exp(-10*abs(veh_vel - vec_vel)))/np.log(2) # 2
         rew_ori = np.log(1+np.exp(-10*abs(self.veh.obs['imu'][0][4:7]/self.veh.info['max_ang_velocity'] - ori_acc)))/np.log(2) # 3
         rew1 = self.info['max_rew']*(2*(np.hstack((rew_ori, rew_vel)))-1).sum() / 5
         # rew1 = self.info['max_rew']*(2*np.log(1+np.exp(-10*(vec_vel - action)**2))/np.log(2) -1).sum() /self.__action_shape[0]
 
         # reward of save energy
-        rew2 = -k2*np.linalg.norm(action, ord=1) / self.__action_shape[0]
+        # rew2 = -k2*np.linalg.norm(relu(np.array([])), ord=1) / self.__action_shape[0]
+        rew2 = 0
 
         # reward of smooth action
-        rew3 = -k3*np.linalg.norm(np.array([self.veh.obs['action'][0][0] - self.action[0], self.veh.obs['action'][0][-1] - self.action[1] ]), ord=1) / self.__action_shape[0]
+        rew3 = -k3*np.linalg.norm(self.veh.obs['action'][0]-self.veh.obs['action'][1], ord=1) / self.__action_shape[0]
 
         ###################### constraint ######################
         const = []
@@ -254,10 +265,17 @@ class BlueBoat_V3(gym.Env):
         #     np.linalg.norm(action - np.array([self.veh.obs['action'][0][0], self.veh.obs['action'][0][-1]]), ord=1) / self.__action_shape[0]
         # )
 
-        # verticle moving constraint
-        const.append(
-            abs(self.veh.obs['imu'][0][9] - self.veh.obs['imu'][1][9]) / 10
-        )
+        # moving tolerrance constraint
+        dot_product = np.dot(self.cmd_vel[:1], veh_vel[:1])
+        magnitude_cmd = np.linalg.norm(self.cmd_vel[:1])
+        magnitude_vel = np.linalg.norm(veh_vel[:1])
+        if magnitude_cmd==0 or magnitude_vel/self.veh.info['max_lin_velocity']<=1e-3:
+            const.append(abs(magnitude_cmd - magnitude_vel/self.veh.info['max_lin_velocity']))
+        else:
+            cos_theta = dot_product / (magnitude_cmd * magnitude_vel)
+            const.append(
+                1- np.cos(cos_theta)
+            )
 
         # stable constraint
         const.append(
@@ -349,8 +367,15 @@ def quaternion_to_direction(q):
 
 # relatively pose transfer with respect to orintation
 def relative_pose_tf(pose1, pose2):
-    x, y = pose2[:2] - pose1[:2]
-    rotation_matrix = R.from_euler('z', pose1[3]).as_matrix()[:2, :2]
-    model_point = np.dot(rotation_matrix, np.array([x, y]))
-    x_prime, y_prime = model_point
-    return np.array([x_prime, y_prime])
+    # Calculate position difference
+    dx, dy = pose1[:2] - pose2[:2]
+
+    # Convert quaternion to yaw (heading)
+    r = R.from_quat([pose2[3], pose2[4], pose2[5], pose2[6]])
+    yaw = r.as_euler('xyz', degrees=False)[2]  # Extract yaw
+
+    # Rotate dx, dy into the boat's local frame based on yaw
+    rotation_matrix = R.from_euler('z', -yaw).as_matrix()[:2, :2]
+    local_pose_diff = np.dot(rotation_matrix, np.array([dx, dy]))
+
+    return local_pose_diff

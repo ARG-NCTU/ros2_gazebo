@@ -3,6 +3,7 @@ import threading
 import gymnasium as gym
 import warnings
 from sb3_arg.policy.mipo import MIPO
+from sb3_arg.FeatureExtractor import BlueBoatFeatureExtractor
 from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.env_util import make_vec_env
@@ -20,6 +21,8 @@ env = DummyVecEnv([lambda: env])
 policy_kwargs = dict(
     activation_fn=th.nn.ReLU,
     net_arch=[dict(pi=[128, 128, 64], vf=[128, 128, 64])],
+    features_extractor_class=BlueBoatFeatureExtractor,
+    features_extractor_kwargs=dict(hist_frame=50, imu_size=10, action_size=6, cmd_size=6, latent_dim=32),
 )
 
 today = date.today()

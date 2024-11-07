@@ -222,10 +222,8 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
         # self.obs['action'] = Twist()
         self.obs['action'] = np.zeros((self.info['hist_frame'], 6))
         self.obs['imu'] = np.array([])
-        self.obs['pose'] = np.array([
-            self.init_pose.position.x, self.init_pose.position.y, self.init_pose.position.z, 
-            self.init_pose.orientation.x, self.init_pose.orientation.y, self.init_pose.orientation.z, self.init_pose.orientation.w], dtype=np.float32)
-        self.obs['last_pose'] = self.obs['pose']
+        self.obs['pose'] = np.array([], dtype=np.float32)
+        # self.obs['last_pose'] = self.obs['pose']
         self.obs['termination'] = False
         self.obs['truncation'] = False
 
@@ -242,10 +240,8 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
         super().reset()
         self.obs['action'] = np.zeros((self.info['hist_frame'], 6))
         self.obs['imu'] = np.array([])
-        self.obs['pose'] = np.array([
-            self.init_pose.position.x, self.init_pose.position.y, self.init_pose.position.z, 
-            self.init_pose.orientation.x, self.init_pose.orientation.y, self.init_pose.orientation.z, self.init_pose.orientation.w], dtype=np.float32)
-        self.obs['last_pose'] = self.obs['pose']
+        self.obs['pose'] = np.array([], dtype=np.float32)
+        # self.obs['last_pose'] = self.obs['pose']
         self.obs['termination'] = False
         self.obs['truncation'] = False
         self.info['step_cnt'] = 0
@@ -260,7 +256,7 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
         self.pub['cmd_vel'].publish(action)
         if self.info['step_cnt'] >= self.info['maxstep']:  # Corrected: self.step_cnt -> self.info['step_cnt']
             self.obs['truncation'] = True
-        self.obs['last_pose'] = self.obs['pose']
+        # self.obs['last_pose'] = self.obs['pose']
     
     def close(self):
         self.get_logger().info("Closing the service...")
@@ -288,7 +284,20 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
         self.obs['termination'] = True if msg is not None else False
 
     def __pose_cb(self, msg):
-        self.obs['pose'] = np.array([
+        pose = np.array([
             msg.poses[0].position.x, msg.poses[0].position.y, msg.poses[0].position.z,
             msg.poses[0].orientation.x, msg.poses[0].orientation.y, msg.poses[0].orientation.z, msg.poses[0].orientation.w
-        ])
+        ], dtype=np.float32)
+        if self.obs['pose'].shape != (self.info['hist_frame'], 7):
+            if self.obs['pose'].shape == (0,):
+                self.obs['pose'] = pose
+            else:
+                self.obs['pose'] = np.vstack((pose, self.obs['pose']))
+        else:
+            self.obs['pose'] = np.roll(self.obs['pose'], 1, axis=0)
+            self.obs['pose'][0] = pose
+            
+        # self.obs['pose'] = np.array([
+        #     msg.poses[0].position.x, msg.poses[0].position.y, msg.poses[0].position.z,
+        #     msg.poses[0].orientation.x, msg.poses[0].orientation.y, msg.poses[0].orientation.z, msg.poses[0].orientation.w
+        # ])
