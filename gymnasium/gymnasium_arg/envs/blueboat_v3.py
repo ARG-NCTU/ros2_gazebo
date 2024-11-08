@@ -217,15 +217,14 @@ class BlueBoat_V3(gym.Env):
             3. reward of smooth action
         '''
         # reward of following cmd_vel
-        vec_vel = cmd_vel[:1] # from 0 to 1
+        vec_vel = cmd_vel[:2] # from 0 to 1
         ori_acc = cmd_vel[3:] # from 3 to 5
 
-        local_pose_diff = relative_pose_tf(self.veh.obs['pose'][0], self.veh.obs['pose'][10])
-        veh_vel = local_pose_diff/(self.info['period']*10) / self.veh.info['max_lin_velocity']
+        local_pose_diff = relative_pose_tf(self.veh.obs['pose'][0], self.veh.obs['pose'][1])
+        veh_vel = local_pose_diff/self.info['period'] / self.veh.info['max_lin_velocity']
         rew_vel = np.log(1+np.exp(-10*abs(veh_vel - vec_vel)))/np.log(2) # 2
         rew_ori = np.log(1+np.exp(-10*abs(self.veh.obs['imu'][0][4:7]/self.veh.info['max_ang_velocity'] - ori_acc)))/np.log(2) # 3
         rew1 = self.info['max_rew']*(2*(np.hstack((rew_ori, rew_vel)))-1).sum() / 5
-        # rew1 = self.info['max_rew']*(2*np.log(1+np.exp(-10*(vec_vel - action)**2))/np.log(2) -1).sum() /self.__action_shape[0]
 
         # reward of save energy
         # rew2 = -k2*np.linalg.norm(relu(np.array([])), ord=1) / self.__action_shape[0]
@@ -247,9 +246,9 @@ class BlueBoat_V3(gym.Env):
         # )
 
         # moving tolerrance constraint
-        dot_product = np.dot(self.cmd_vel[:1], veh_vel[:1])
-        magnitude_cmd = np.linalg.norm(self.cmd_vel[:1])
-        magnitude_vel = np.linalg.norm(veh_vel[:1])
+        dot_product = np.dot(self.cmd_vel[:2], veh_vel[:2])
+        magnitude_cmd = np.linalg.norm(self.cmd_vel[:2])
+        magnitude_vel = np.linalg.norm(veh_vel[:2])
         if magnitude_cmd==0 or magnitude_vel/self.veh.info['max_lin_velocity']<=1e-3:
             const.append(abs(magnitude_cmd - magnitude_vel/self.veh.info['max_lin_velocity']))
         else:
@@ -260,7 +259,7 @@ class BlueBoat_V3(gym.Env):
 
         # stable constraint
         const.append(
-            np.linalg.norm(self.veh.obs['imu'][0][:1], ord=1) / 2
+            np.linalg.norm(self.veh.obs['imu'][0][:2], ord=1) / 2
         )
 
         return np.array([rew1, rew2, rew3])/self.info['max_rew'], const
