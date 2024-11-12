@@ -18,10 +18,10 @@ import xml.etree.ElementTree as ET
 from gymnasium_arg.utils.gz_model import GZ_MODEL
 
 
-class WAMVV1_GZ_MODEL(GZ_MODEL):
+class WAMVV2_GZ_MODEL(GZ_MODEL):
 
         
-    def __init__(self, world, name, path, pose: Pose, info={'veh':'wamv_v1', 'maxstep': 4096, 'max_thrust': 15*746/9.8, 'hist_frame': 5}):
+    def __init__(self, world, name, path, pose: Pose, info={'veh':'wamv_v2', 'maxstep': 4096, 'max_thrust': 15*746/9.8, 'hist_frame': 5}):
         super().__init__(orig_name=info['veh'], name=name, path=path, world=world, init_pose=pose)
         self.info['maxstep'] = info['maxstep']
         self.info['max_thrust'] = info['max_thrust']
