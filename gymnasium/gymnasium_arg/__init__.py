@@ -24,3 +24,9 @@ register(
     entry_point="gymnasium_arg.envs:BlueBoat_V3",
     max_episode_steps=4096,
 )
+
+register(
+    id="usv-v1",
+    entry_point="gymnasium_arg.envs:USV_V1",
+    max_episode_steps=4096,
+)
