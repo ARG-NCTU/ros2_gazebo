@@ -126,6 +126,7 @@ class USV_V1(gym.Env):
         # self.vae_optimizer = optim.Adam(self.vae.parameters(), lr=1e-5)
         self.cmd_vel = np.array([0.0, 1.0, 0.0, 0.0, 0.0, 0.0])
         self.refer_ori = np.array([0, 0, 0, 1], dtype=np.float32)
+        self.refer_pos = np.array([0, 0, 0], dtype=np.float32)
         self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=self.__action_shape, dtype=np.float32, seed=seed)
         self.observation_space = gym.spaces.Box(
             low=-np.inf,
@@ -229,8 +230,11 @@ class USV_V1(gym.Env):
         vec_vel = cmd_vel[:2] # from 0 to 1
         ori_acc = cmd_vel[3:] # from 3 to 5
 
-        local_pose_diff = relative_pose_tf(self.veh.obs['pose'][0], self.veh.obs['pose'][1])
-        veh_vel = local_pose_diff/self.info['period'] / self.veh.info['max_lin_velocity']
+        local_pose_diff = relative_pose_tf(self.veh.obs['pose'][0], np.hstack((self.refer_pos, self.refer_ori)))
+        d_t = self.info['period']
+        if self.veh.info['step_cnt'] != 0:
+            d_t = self.info['period'] * self.veh.info['step_cnt']
+        veh_vel = local_pose_diff / self.veh.info['max_lin_velocity'] / d_t
         rew_vel = np.log(1+np.exp(-10*abs(veh_vel - vec_vel)))/np.log(2) # 2
         rew_ori = np.log(1+np.exp(-10*abs(self.veh.obs['imu'][0][4:7]/self.veh.info['max_ang_velocity'] - ori_acc)))/np.log(2) # 3
         rew1 = self.info['max_rew']*(2*(np.hstack((rew_ori, rew_vel)))-1).sum() / 5
