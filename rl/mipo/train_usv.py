@@ -15,7 +15,8 @@ import torch as th
 warnings.filterwarnings("ignore")
 # policy_kwargs = dict(activation_fn=torch.nn.ReLU,
 #                      net_arch=[128, 256, 128],)
-env = gym.make("gymnasium_arg:usv-v1", world='waves', veh='blueboat', max_thrust=10.0)
+env = gym.make("gymnasium_arg:usv-v1", world='waves', veh='wamv_v1', max_thrust=15*746/9.8)
+# env = gym.make("gymnasium_arg:usv-v1", world='waves', veh='blueboat', max_thrust=10)
 env = DummyVecEnv([lambda: env])
 
 policy_kwargs = dict(
