@@ -109,6 +109,7 @@ class USV_V1(gym.Env):
             'latent': self.info['latent_dim'],
             # 'rl_obs': 6+self.info['latent_dim'],
             'cmd_vel': (6, ),
+            'refer_ori': (4, ),
         }
         # (
         #     self.info['hist_frame']*self.__action_shape[0] + # hist action: hist cmd_vel
@@ -123,13 +124,13 @@ class USV_V1(gym.Env):
 
         # self.vae = VAE(imu_dim=self.__obs_shape['imu'], action_dim=self.__obs_shape['action'], latent_dim=self.__obs_shape['latent'])
         # self.vae_optimizer = optim.Adam(self.vae.parameters(), lr=1e-5)
-        self.cmd_vel = np.array([1.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-
+        self.cmd_vel = np.array([0.0, 1.0, 0.0, 0.0, 0.0, 0.0])
+        self.refer_ori = np.array([0, 0, 0, 1], dtype=np.float32)
         self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=self.__action_shape, dtype=np.float32, seed=seed)
         self.observation_space = gym.spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(np.prod(self.__obs_shape['imu'])+np.prod(self.__obs_shape['action'])+np.prod(self.__obs_shape['cmd_vel']),),
+            shape=(np.prod(self.__obs_shape['imu'])+np.prod(self.__obs_shape['action'])+np.prod(self.__obs_shape['cmd_vel'])+np.prod(self.__obs_shape['refer_ori']),),
             dtype=np.float32,
             seed=seed
         )
@@ -210,7 +211,7 @@ class USV_V1(gym.Env):
         imu_obs = veh_obs['imu'].flatten()
         action_obs = veh_obs['action'].flatten()
         # cmd_obs = np.array([self.cmd_vel[0], self.cmd_vel[1], self.cmd_vel[2], self.cmd_vel[3], self.cmd_vel[4], self.cmd_vel[5]])
-        obs = np.concatenate([imu_obs, action_obs, self.cmd_vel])
+        obs = np.concatenate([imu_obs, action_obs, self.cmd_vel, self.refer_ori])
         return obs
 
     def get_reward_constraint(self, cmd_vel, action):

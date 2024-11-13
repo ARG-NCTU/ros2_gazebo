@@ -1,1 +1,2 @@
 from sb3_arg.FeatureExtractor.blueboat_feature_extractor import BlueBoatFeatureExtractor
+from sb3_arg.FeatureExtractor.usv_feature_extractor import USVFeatureExtractor
