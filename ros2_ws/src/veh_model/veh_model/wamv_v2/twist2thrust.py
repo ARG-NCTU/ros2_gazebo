@@ -37,19 +37,31 @@ class ThrustCalculatorNode(Node):
             Float64, f'/{self.name}/joint/left/thruster/cmd_pos', 1)
         self.right_thrust_pose_publisher = self.create_publisher(
             Float64, f'/{self.name}/joint/right/thruster/cmd_pos', 1)
-        
 
     def cmd_vel_callback(self, msg):
         left_msg = Float64()
         right_msg = Float64()
         left_pose_msg = Float64()
         right_pose_msg = Float64()
-        left_msg.data = msg.twist.linear.x * self.max_thrust
-        right_msg.data = msg.twist.linear.x * self.max_thrust
-        dir = -1 if msg.twist.linear.x > 0 else 1
-        dir = dir * np.pi / 4
-        left_pose_msg.data = msg.twist.angular.z * dir
-        right_pose_msg.data = msg.twist.angular.z * dir
+        left_pos = np.array([-2.3, 1.027135])
+        right_pos = np.array([-2.3, -1.027135])
+        operator = lambda x: 1 if x > 0 else -1
+        # Compute the distance between engines (width of the boat)
+        engine_distance = np.linalg.norm(left_pos - right_pos)
+        thrust = msg.twist.linear.x * self.max_thrust
+        differential = msg.twist.angular.z * engine_distance * self.max_thrust / 2
+
+        left_thrust = thrust - differential
+        right_thrust = thrust + differential
+
+        angle_sync = 0.5* np.arctan2(abs(differential), abs(thrust)) * operator(differential)
+        
+
+        left_msg.data = left_thrust
+        right_msg.data = right_thrust
+        left_pose_msg.data = angle_sync
+        right_pose_msg.data = angle_sync
+
         
         self.left_thrust_publisher.publish(left_msg)
         # self.left_front_thrust_publisher.publish(left_front_msg)
@@ -59,7 +71,7 @@ class ThrustCalculatorNode(Node):
         self.right_thrust_pose_publisher.publish(right_pose_msg)
 
         # self.get_logger().info(
-        #     f"left thrust: {left_msg.data:.4f} rad/s, right thrust: {right_msg.data:.4f} rad/s, left front thrust: {left_front_msg.data:.4f} rad/s right front thrust: {right_front_msg.data:.4f} rad/s"
+        #     f"left thrust: {left_msg.data:.4f} rad/s, right thrust: {right_msg.data:.4f} rad/s, left ang thrust: {left_pose_msg.data:.4f} rad/s right ang thrust: {right_pose_msg.data:.4f} rad/s"
         # )
 
 def main(args=None):
