@@ -13,7 +13,7 @@ import torch as th
 
 
 warnings.filterwarnings("ignore")
-env = gym.make("gymnasium_arg:usv-v1", world='waves', veh='wamv_v2', max_thrust=15*746/9.8)
+env = gym.make("gymnasium_arg:usv-v1", world='lake', veh='wamv_v2', max_thrust=15*746/9.8)
 # env = gym.make("gymnasium_arg:usv-v1", world='waves', veh='blueboat', max_thrust=10)
 env = DummyVecEnv([lambda: env])
 
@@ -41,7 +41,7 @@ model = MIPO(
     batch_size=128,
     n_steps=4096,
     num_constraints=2,  # Pass the number of constraints to the policy
-    constraint_thresholds=np.array([0.1, 0.1]),  # Initial thresholds d_k
+    constraint_thresholds=np.array([0.01, 0.1]),  # Initial thresholds d_k
     barrier_coefficient=100.0,                      # Hyperparameter t
     alpha=0.02,                                   # Hyperparameter α
     n_epochs=10,

@@ -175,23 +175,29 @@ class USV_V1(gym.Env):
             'truncation': self.get_truncation(),
         }
         state['reward'], state['constraint_costs'] = self.get_reward_constraint(self.cmd_vel, action)
-
         sgn_bool = lambda x: True if x >= 0 else False
 
-        output = "\rstep:{:4d}, cmd: [x:{}, yaw:{}], rews: [{}, {}, {}]".format(
+        output = "\rstep:{:4d}, cmd: [x:{}, yaw:{}], rews: [{}, {}, {}] const:[{}, {}]".format(
             self.veh.info['step_cnt'],
             " {:4.2f}".format(action[0]) if sgn_bool(action[0]) else "{:4.2f}".format(action[0]),
             " {:4.2f}".format(action[1]) if sgn_bool(action[1]) else "{:4.2f}".format(action[1]),
             " {:4.2f}".format(state['reward'][0]) if sgn_bool(state['reward'][0]) else "{:4.2f}".format(state['reward'][0]),
             " {:4.2f}".format(state['reward'][1]) if sgn_bool(state['reward'][1]) else "{:4.2f}".format(state['reward'][1]),
             " {:4.2f}".format(state['reward'][2]) if sgn_bool(state['reward'][2]) else "{:4.2f}".format(state['reward'][2]),
+            " {:4.2f}".format(state['constraint_costs'][0]) if sgn_bool(state['constraint_costs'][0]) else "{:4.2f}".format(state['constraint_costs'][0]),
+            " {:4.2f}".format(state['constraint_costs'][1]) if sgn_bool(state['constraint_costs'][1]) else "{:4.2f}".format(state['constraint_costs'][1]),
         )
         sys.stdout.write(output)
         sys.stdout.flush()
 
+        if (state['constraint_costs'][0] > 0.3 or state['constraint_costs'][1] > 0.3) and self.veh.info['step_cnt'] > 100:
+            state['termination'] = True
+
+        if state['termination'] or state['truncation']:
+            self.__pause()
+
         info = self.veh.info
         info['constraint_costs'] = np.array(state['constraint_costs'], dtype=np.float32)
-        
         return state['obs'], state['reward'].sum(), state['termination'], state['truncation'], info
 
     def close(self):
@@ -244,7 +250,8 @@ class USV_V1(gym.Env):
         rew2 = 0
 
         # reward of smooth action
-        rew3 = -k3*np.linalg.norm(self.veh.obs['action'][0]-self.veh.obs['action'][1], ord=1) / self.__action_shape[0]
+        # rew3 = -k3*np.linalg.norm(self.veh.obs['action'][0]-self.veh.obs['action'][1], ord=1) / self.__action_shape[0]
+        rew3 = 0
 
         ###################### constraint ######################
         const = []
@@ -258,21 +265,22 @@ class USV_V1(gym.Env):
         #     np.linalg.norm(action - np.array([self.veh.obs['action'][0][0], self.veh.obs['action'][0][-1]]), ord=1) / self.__action_shape[0]
         # )
 
-        # moving tolerrance constraint
+        # vel tolerrance constraint
         dot_product = np.dot(self.cmd_vel[:2], veh_vel[:2])
         magnitude_cmd = np.linalg.norm(self.cmd_vel[:2])
         magnitude_vel = np.linalg.norm(veh_vel[:2])
-        if magnitude_cmd==0 or magnitude_vel/self.veh.info['max_lin_velocity']<=1e-3:
-            const.append(abs(magnitude_cmd - magnitude_vel/self.veh.info['max_lin_velocity']))
+        if magnitude_cmd==0 or magnitude_vel<=1e-2:
+            const.append(abs(magnitude_cmd - magnitude_vel))
         else:
-            cos_theta = dot_product / (magnitude_cmd * magnitude_vel)
             const.append(
-                1- np.cos(cos_theta)
+                1- dot_product / (magnitude_cmd * magnitude_vel)
             )
+        # const.append(1-np.arctan2())
 
-        # stable constraint
+        # dir constraint
         const.append(
-            np.linalg.norm(self.veh.obs['imu'][0][:2], ord=1) / 2
+            # np.linalg.norm(self.veh.obs['imu'][0][:2], ord=1) / 2
+            0.0
         )
 
         return np.array([rew1, rew2, rew3])/self.info['max_rew'], const

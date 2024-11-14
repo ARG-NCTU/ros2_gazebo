@@ -240,6 +240,7 @@ class BlueBoat_GZ_MODEL(GZ_MODEL):
         return self.obs
     
     def reset(self):
+        self.pub['cmd_vel'].publish(TwistStamped())
         super().reset()
         self.obs['action'] = np.zeros((self.info['hist_frame'], 6))
         self.obs['imu'] = np.array([])
