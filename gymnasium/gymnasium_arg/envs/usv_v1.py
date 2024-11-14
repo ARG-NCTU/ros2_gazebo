@@ -142,6 +142,7 @@ class USV_V1(gym.Env):
     
     def reset(self, seed=None, options=None):
         self.__pause()
+        self.refer_pos = np.array([0, 0, 0], dtype=np.float32)
         self.veh.reset()
         self.info['last_clock_time'] = None
         self.action = np.zeros(self.__action_shape)
@@ -149,6 +150,7 @@ class USV_V1(gym.Env):
         return self.get_observation(np.zeros(self.__action_shape)), self.veh.info
 
     def step(self, action):
+        self.__unpause()
         self.__clock_sync()
         self.info['total_step'] += 1
         self.action = action
@@ -175,7 +177,6 @@ class USV_V1(gym.Env):
             'truncation': self.get_truncation(),
         }
         state['reward'], state['constraint_costs'] = self.get_reward_constraint(self.cmd_vel, action)
-        self.__pause()
 
         sgn_bool = lambda x: True if x >= 0 else False
         output = "\rstep:{:4d}, cmd: [x:{}, yaw:{}], rews: [{}, {}, {}] const:[{}, {}]".format(
@@ -194,14 +195,14 @@ class USV_V1(gym.Env):
         if (state['constraint_costs'][0] > 0.8 or state['constraint_costs'][1] > 0.3) and self.veh.info['step_cnt'] > 100:
             state['termination'] = True
 
-        if state['termination'] or state['truncation']:
-            self.__pause()
-        else:
-            self.__unpause()
-
+        if self.veh.info['step_cnt'] % self.veh.info['hist_frame'] == 0:
+            self.refer_pos = self.veh.obs['pose'][0][:3]
+        
         info = self.veh.info
         info['constraint_costs'] = np.array(state['constraint_costs'], dtype=np.float32)
 
+        self.__pause()
+        
         return state['obs'], state['reward'].sum(), state['termination'], state['truncation'], info
 
     def close(self):
@@ -305,7 +306,7 @@ class USV_V1(gym.Env):
         future = self.gz_world.call_async(req)
         while not future.done():
             rclpy.spin_once(self.node, timeout_sec=0)  # Non-blocking spin
-            time.sleep(0.01)
+            # time.sleep(0.01)
         # Use a temporary executor
         # temp_executor = rclpy.executors.SingleThreadedExecutor()
         # temp_executor.add_node(self.node)
@@ -325,7 +326,7 @@ class USV_V1(gym.Env):
         # Wait for the future to complete without spinning the node
         while not future.done():
             rclpy.spin_once(self.node, timeout_sec=0)  # Non-blocking spin
-            time.sleep(0.01)
+            # time.sleep(0.01)
         if future.result() is None:
             self.node.get_logger().error('Failed to unpause GZ world')
         # time.sleep(0.01)
