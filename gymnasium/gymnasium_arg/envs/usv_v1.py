@@ -175,8 +175,9 @@ class USV_V1(gym.Env):
             'truncation': self.get_truncation(),
         }
         state['reward'], state['constraint_costs'] = self.get_reward_constraint(self.cmd_vel, action)
-        sgn_bool = lambda x: True if x >= 0 else False
+        self.__pause()
 
+        sgn_bool = lambda x: True if x >= 0 else False
         output = "\rstep:{:4d}, cmd: [x:{}, yaw:{}], rews: [{}, {}, {}] const:[{}, {}]".format(
             self.veh.info['step_cnt'],
             " {:4.2f}".format(action[0]) if sgn_bool(action[0]) else "{:4.2f}".format(action[0]),
@@ -190,14 +191,17 @@ class USV_V1(gym.Env):
         sys.stdout.write(output)
         sys.stdout.flush()
 
-        if (state['constraint_costs'][0] > 0.3 or state['constraint_costs'][1] > 0.3) and self.veh.info['step_cnt'] > 100:
+        if (state['constraint_costs'][0] > 0.8 or state['constraint_costs'][1] > 0.3) and self.veh.info['step_cnt'] > 100:
             state['termination'] = True
 
         if state['termination'] or state['truncation']:
             self.__pause()
+        else:
+            self.__unpause()
 
         info = self.veh.info
         info['constraint_costs'] = np.array(state['constraint_costs'], dtype=np.float32)
+
         return state['obs'], state['reward'].sum(), state['termination'], state['truncation'], info
 
     def close(self):
@@ -294,24 +298,27 @@ class USV_V1(gym.Env):
     ########################################## private funcs ####################################
     def __pause(self):
         while not self.gz_world.wait_for_service(timeout_sec=1.0):
-            self.node.get_logger().info('Waiting for GZ world control service...')
+            pass
+            # self.node.get_logger().info('Waiting for GZ world control service...')
         req = ControlWorld.Request()
         req.world_control.pause = True
         future = self.gz_world.call_async(req)
+        while not future.done():
+            rclpy.spin_once(self.node, timeout_sec=0)  # Non-blocking spin
+            time.sleep(0.01)
         # Use a temporary executor
-        temp_executor = rclpy.executors.SingleThreadedExecutor()
-        temp_executor.add_node(self.node)
-        temp_executor.spin_until_future_complete(future)
-        temp_executor.shutdown()
-        if future.result() is not None:
-            self.node.get_logger().info('GZ world paused')
-        else:
+        # temp_executor = rclpy.executors.SingleThreadedExecutor()
+        # temp_executor.add_node(self.node)
+        # temp_executor.spin_until_future_complete(future)
+        # temp_executor.shutdown()
+        if future.result() is None:
             self.node.get_logger().error('Failed to pause GZ world')
-        time.sleep(0.1)
+        # time.sleep(0.01)
 
     def __unpause(self):
         while not self.gz_world.wait_for_service(timeout_sec=1.0):
-            self.node.get_logger().info('Waiting for GZ world control service...')
+            pass
+            # self.node.get_logger().info('Waiting for GZ world control service...')
         req = ControlWorld.Request()
         req.world_control.pause = False
         future = self.gz_world.call_async(req)
@@ -319,11 +326,9 @@ class USV_V1(gym.Env):
         while not future.done():
             rclpy.spin_once(self.node, timeout_sec=0)  # Non-blocking spin
             time.sleep(0.01)
-        if future.result() is not None:
-            self.node.get_logger().info('GZ world unpaused')
-        else:
+        if future.result() is None:
             self.node.get_logger().error('Failed to unpause GZ world')
-        time.sleep(0.1)
+        # time.sleep(0.01)
     
     def __reset_world(self):
         while not self.gz_world.wait_for_service(timeout_sec=1.0):
