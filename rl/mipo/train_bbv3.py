@@ -15,11 +15,11 @@ import torch as th
 warnings.filterwarnings("ignore")
 # policy_kwargs = dict(activation_fn=torch.nn.ReLU,
 #                      net_arch=[128, 256, 128],)
-env = gym.make("gymnasium_arg:blueboat-v3", world='waves', veh='blueboat', max_thrust=10.0)
+env = gym.make("gymnasium_arg:blueboat-v3", world='lake', veh='blueboat', max_thrust=10.0)
 env = DummyVecEnv([lambda: env])
 
 policy_kwargs = dict(
-    activation_fn=th.nn.ReLU,
+    activation_fn=th.nn.Sigmoid,
     net_arch=[dict(pi=[128, 128, 64], vf=[128, 128, 64])],
     features_extractor_class=BlueBoatFeatureExtractor,
     features_extractor_kwargs=dict(hist_frame=50, imu_size=10, action_size=6, cmd_size=6, latent_dim=32),

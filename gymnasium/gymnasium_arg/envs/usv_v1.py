@@ -192,8 +192,13 @@ class USV_V1(gym.Env):
         sys.stdout.write(output)
         sys.stdout.flush()
 
-        if (state['constraint_costs'][0] > 0.8 or state['constraint_costs'][1] > 0.3) and self.veh.info['step_cnt'] > 100:
-            state['termination'] = True
+        state['reward'] = state['reward'].sum()
+
+        # if (state['constraint_costs'][0] > 0.8 or state['constraint_costs'][1] > 0.3) and self.veh.info['step_cnt'] % 30 == 0:
+        #     state['termination'] = True
+
+        if state['termination']:
+            state['reward'] = -1.0
 
         if self.veh.info['step_cnt'] % self.veh.info['hist_frame'] == 0:
             self.refer_pos = self.veh.obs['pose'][0][:3]
@@ -203,7 +208,7 @@ class USV_V1(gym.Env):
 
         self.__pause()
         
-        return state['obs'], state['reward'].sum(), state['termination'], state['truncation'], info
+        return state['obs'], state['reward'], state['termination'], state['truncation'], info
 
     def close(self):
     # Stop the executor thread before shutting down nodes
