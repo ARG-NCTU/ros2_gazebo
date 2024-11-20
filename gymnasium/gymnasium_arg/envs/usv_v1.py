@@ -251,8 +251,8 @@ class USV_V1(gym.Env):
         if self.veh.info['step_cnt'] != 0:
             d_t = self.info['period'] * self.veh.info['step_cnt']
         veh_vel = local_pose_diff / self.veh.info['max_lin_velocity'] / d_t
-        rew_vel = np.log(1+np.exp(-10*abs(veh_vel - vec_vel)))/np.log(2) # 2
-        rew_ori = np.log(1+np.exp(-10*abs(self.veh.obs['imu'][0][4:7]/self.veh.info['max_ang_velocity'] - ori_acc)))/np.log(2) # 3
+        rew_vel = np.log(1+np.exp(-12*abs(veh_vel - vec_vel)))/np.log(2) # 2
+        rew_ori = np.log(1+np.exp(-8*abs(self.veh.obs['imu'][0][4:7]/self.veh.info['max_ang_velocity'] - ori_acc)))/np.log(2) # 3
         rew1 = self.info['max_rew']*(2*(np.hstack((rew_ori, rew_vel)))-1).sum() / 5
 
         # reward of save energy

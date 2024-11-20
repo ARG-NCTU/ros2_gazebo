@@ -13,7 +13,7 @@ import torch as th
 
 
 warnings.filterwarnings("ignore")
-env = gym.make("gymnasium_arg:usv-v1", world='lake', veh='wamv_v2', max_thrust=15*746/9.8)
+env = gym.make("gymnasium_arg:usv-v1", world='lake', veh='wamv_v2', max_thrust=15*746/9.8, hist_frame=150)
 # env = gym.make("gymnasium_arg:usv-v1", world='waves', veh='blueboat', max_thrust=10)
 env = DummyVecEnv([lambda: env])
 
@@ -21,7 +21,7 @@ policy_kwargs = dict(
     activation_fn=th.nn.ReLU,
     net_arch=[dict(pi=[128, 128, 64], vf=[128, 128, 64])],
     features_extractor_class=USVFeatureExtractor,
-    features_extractor_kwargs=dict(hist_frame=50, imu_size=10, action_size=6, cmd_size=6, refer_size=4, latent_dim=32),
+    features_extractor_kwargs=dict(hist_frame=150, imu_size=10, action_size=6, cmd_size=6, refer_size=4, latent_dim=32),
 )
 
 today = date.today()
