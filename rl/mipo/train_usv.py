@@ -3,7 +3,7 @@ import threading
 import gymnasium as gym
 import warnings
 from sb3_arg.policy.mipo import MIPO
-from sb3_arg.FeatureExtractor import USVFeatureExtractor
+from sb3_arg.FeatureExtractor import USVFeatureExtractor, USVGRUExtractor, USVCNNExtractor
 from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.env_util import make_vec_env
@@ -21,7 +21,7 @@ policy_kwargs = dict(
     activation_fn=th.nn.ReLU,
     net_arch=[dict(pi=[128, 128, 64], vf=[128, 128, 64])],
     features_extractor_class=USVFeatureExtractor,
-    features_extractor_kwargs=dict(hist_frame=150, imu_size=10, action_size=6, cmd_size=6, refer_size=4, latent_dim=32),
+    features_extractor_kwargs=dict(hist_frame=150, imu_size=10, action_size=2, cmd_size=3, refer_size=3, latent_dim=6+128),
 )
 
 today = date.today()
@@ -41,7 +41,7 @@ model = MIPO(
     batch_size=128,
     n_steps=4096,
     num_constraints=2,  # Pass the number of constraints to the policy
-    constraint_thresholds=np.array([0.01, 0.1]),  # Initial thresholds d_k
+    constraint_thresholds=np.array([0.1, 0.5]),  # Initial thresholds d_k
     barrier_coefficient=100.0,                      # Hyperparameter t
     alpha=0.02,                                   # Hyperparameter α
     n_epochs=10,

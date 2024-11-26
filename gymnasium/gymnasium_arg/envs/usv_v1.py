@@ -105,11 +105,11 @@ class USV_V1(gym.Env):
         self.__action_shape = (2, )
         self.__obs_shape = {
             'imu': (hist_frame, 10),
-            'action': (hist_frame, 6),
+            'action': (hist_frame, 2),
             'latent': self.info['latent_dim'],
             # 'rl_obs': 6+self.info['latent_dim'],
-            'cmd_vel': (6, ),
-            'refer_ori': (4, ),
+            'cmd_vel': (3, ),
+            'refer': (3, ),
         }
         # (
         #     self.info['hist_frame']*self.__action_shape[0] + # hist action: hist cmd_vel
@@ -124,14 +124,15 @@ class USV_V1(gym.Env):
 
         # self.vae = VAE(imu_dim=self.__obs_shape['imu'], action_dim=self.__obs_shape['action'], latent_dim=self.__obs_shape['latent'])
         # self.vae_optimizer = optim.Adam(self.vae.parameters(), lr=1e-5)
-        self.cmd_vel = np.array([0.0, 1.0, 0.0, 0.0, 0.0, 0.0])
-        self.refer_ori = np.array([0, 0, 0, 1], dtype=np.float32)
-        self.refer_pos = np.array([0, 0, 0], dtype=np.float32)
+        self.cmd_vel = np.array([0.0, 0.0, 0.0])
+        # self.refer_ori = np.array([0, 0, 0, 1], dtype=np.float32)
+        # self.refer_pos = np.array([0, 0, 0], dtype=np.float32)
+        self.refer_pose = np.array([0, 0, 0], dtype=np.float32)
         self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=self.__action_shape, dtype=np.float32, seed=seed)
         self.observation_space = gym.spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(np.prod(self.__obs_shape['imu'])+np.prod(self.__obs_shape['action'])+np.prod(self.__obs_shape['cmd_vel'])+np.prod(self.__obs_shape['refer_ori']),),
+            shape=(np.prod(self.__obs_shape['imu'])+np.prod(self.__obs_shape['action'])+np.prod(self.__obs_shape['cmd_vel'])+np.prod(self.__obs_shape['refer']),),
             dtype=np.float32,
             seed=seed
         )
@@ -142,7 +143,8 @@ class USV_V1(gym.Env):
     
     def reset(self, seed=None, options=None):
         self.__pause()
-        self.refer_pos = np.array([0, 0, 0], dtype=np.float32)
+        # self.refer_pos = np.array([0, 0, 0], dtype=np.float32)
+        self.refer_pose = np.array([0, 0, 0], dtype=np.float32)
         self.veh.reset()
         self.info['last_clock_time'] = None
         self.action = np.zeros(self.__action_shape)
@@ -179,8 +181,11 @@ class USV_V1(gym.Env):
         state['reward'], state['constraint_costs'] = self.get_reward_constraint(self.cmd_vel, action)
 
         sgn_bool = lambda x: True if x >= 0 else False
-        output = "\rstep:{:4d}, cmd: [x:{}, yaw:{}], rews: [{}, {}, {}] const:[{}, {}]".format(
+        output = "\rstep:{:4d}, cmd: [x:{}, y:{}, yaw:{}], twist: [x:{}, yaw:{}], rews: [{}, {}, {}] const:[{}, {}]".format(
             self.veh.info['step_cnt'],
+            " {:4.2f}".format(self.cmd_vel[0]) if sgn_bool(self.cmd_vel[0]) else "{:4.2f}".format(self.cmd_vel[0]),
+            " {:4.2f}".format(self.cmd_vel[1]) if sgn_bool(self.cmd_vel[1]) else "{:4.2f}".format(self.cmd_vel[1]),
+            " {:4.2f}".format(self.cmd_vel[2]) if sgn_bool(self.cmd_vel[2]) else "{:4.2f}".format(self.cmd_vel[2]),
             " {:4.2f}".format(action[0]) if sgn_bool(action[0]) else "{:4.2f}".format(action[0]),
             " {:4.2f}".format(action[1]) if sgn_bool(action[1]) else "{:4.2f}".format(action[1]),
             " {:4.2f}".format(state['reward'][0]) if sgn_bool(state['reward'][0]) else "{:4.2f}".format(state['reward'][0]),
@@ -200,9 +205,13 @@ class USV_V1(gym.Env):
         if state['termination']:
             state['reward'] = -1.0
 
-        if self.veh.info['step_cnt'] % self.veh.info['hist_frame'] == 0:
-            self.refer_pos = self.veh.obs['pose'][0][:3]
-        
+        if self.veh.info['step_cnt'] % 1024 == 0:
+            self.cmd_vel = np.array([random.uniform(-1, 1), random.uniform(-1, 1), 0])
+            yaw = R.from_quat([self.veh.obs['pose'][0][3], 
+                               self.veh.obs['pose'][0][4], 
+                               self.veh.obs['pose'][0][5], 
+                               self.veh.obs['pose'][0][6]]).as_euler('xyz', degrees=False)[2]  # Extract yaw
+            self.refer_pose = np.hstack((self.veh.obs['pose'][0][:2], yaw))
         info = self.veh.info
         info['constraint_costs'] = np.array(state['constraint_costs'], dtype=np.float32)
 
@@ -226,9 +235,14 @@ class USV_V1(gym.Env):
     def get_observation(self, cmd_vel):
         veh_obs = self.veh.get_observation()
         imu_obs = veh_obs['imu'].flatten()
-        action_obs = veh_obs['action'].flatten()
+        action_obs = veh_obs['action'][:, [0, 5]].flatten()
         # cmd_obs = np.array([self.cmd_vel[0], self.cmd_vel[1], self.cmd_vel[2], self.cmd_vel[3], self.cmd_vel[4], self.cmd_vel[5]])
-        obs = np.concatenate([imu_obs, action_obs, self.cmd_vel, self.refer_ori])
+        ref_yaw = self.refer_pose[2]
+        veh_yaw = R.from_quat([veh_obs['pose'][0][3], 
+                               veh_obs['pose'][0][4], 
+                               veh_obs['pose'][0][5], 
+                               veh_obs['pose'][0][6]]).as_euler('xyz', degrees=False)[2]
+        obs = np.concatenate([imu_obs, action_obs, self.cmd_vel, np.hstack((self.veh.obs['pose'][0][:2]-self.refer_pose[:2], veh_yaw-ref_yaw))])
         return obs
 
     def get_reward_constraint(self, cmd_vel, action):
@@ -244,16 +258,20 @@ class USV_V1(gym.Env):
         '''
         # reward of following cmd_vel
         vec_vel = cmd_vel[:2] # from 0 to 1
-        ori_acc = cmd_vel[3:] # from 3 to 5
+        ori_acc = cmd_vel[2] # 2
 
-        local_pose_diff = relative_pose_tf(self.veh.obs['pose'][0], np.hstack((self.refer_pos, self.refer_ori)))
+        # local_pose_diff = relative_pose_tf(self.veh.obs['pose'][0], np.hstack((self.refer_pos, self.refer_ori)))
+        # self.refer_pose[2] is yaw make refer_ori a orientation
+        refer_ori = R.from_euler('xyz', [0, 0, self.refer_pose[2]]).as_quat()
+        refer_pose = np.hstack((np.hstack((self.refer_pose[:2], 0)), refer_ori))
+        local_pose_diff = relative_pose_tf(self.veh.obs['pose'][0], refer_pose)
         d_t = self.info['period']
         if self.veh.info['step_cnt'] != 0:
             d_t = self.info['period'] * self.veh.info['step_cnt']
         veh_vel = local_pose_diff / self.veh.info['max_lin_velocity'] / d_t
         rew_vel = np.log(1+np.exp(-12*abs(veh_vel - vec_vel)))/np.log(2) # 2
-        rew_ori = np.log(1+np.exp(-8*abs(self.veh.obs['imu'][0][4:7]/self.veh.info['max_ang_velocity'] - ori_acc)))/np.log(2) # 3
-        rew1 = self.info['max_rew']*(2*(np.hstack((rew_ori, rew_vel)))-1).sum() / 5
+        rew_ori = 0.5*np.log(1+np.exp(-8*abs(self.veh.obs['imu'][0][6]/self.veh.info['max_ang_velocity'] - ori_acc)))/np.log(2) # 1
+        rew1 = self.info['max_rew']*0.2*(2*(np.hstack((rew_ori, rew_vel)))-1).sum() / 2.5
 
         # reward of save energy
         # rew2 = -k2*np.linalg.norm(relu(np.array([])), ord=1) / self.__action_shape[0]
@@ -279,18 +297,22 @@ class USV_V1(gym.Env):
         dot_product = np.dot(self.cmd_vel[:2], veh_vel[:2])
         magnitude_cmd = np.linalg.norm(self.cmd_vel[:2])
         magnitude_vel = np.linalg.norm(veh_vel[:2])
-        if magnitude_cmd==0 or magnitude_vel<=1e-2:
+        if magnitude_cmd==0 or magnitude_vel<=0.1:
             const.append(abs(magnitude_cmd - magnitude_vel))
         else:
             const.append(
-                1- dot_product / (magnitude_cmd * magnitude_vel)
+                (1 - dot_product / (magnitude_cmd * magnitude_vel))*0.1
             )
         # const.append(1-np.arctan2())
 
         # dir constraint
+        veh_yaw = R.from_quat([self.veh.obs['pose'][0][3], 
+                               self.veh.obs['pose'][0][4], 
+                               self.veh.obs['pose'][0][5], 
+                               self.veh.obs['pose'][0][6]]).as_euler('xyz', degrees=False)[2]
+        ref_yaw = self.refer_pose[2]
         const.append(
-            # np.linalg.norm(self.veh.obs['imu'][0][:2], ord=1) / 2
-            0.0
+            (1-np.cos(veh_yaw - ref_yaw))/2
         )
 
         return np.array([rew1, rew2, rew3])/self.info['max_rew'], const
