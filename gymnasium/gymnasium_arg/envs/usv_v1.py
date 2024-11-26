@@ -246,8 +246,9 @@ class USV_V1(gym.Env):
         return obs
 
     def get_reward_constraint(self, cmd_vel, action):
-        k2 = 10
-        k3 = 50
+        k1 = 20
+        k2 = 80
+        k3 = 10
         # operator = lambda x: 1 if x >= 0 else -1
         # sigmoid = lambda x: 1/(1+np.exp(-x))
         # relu = lambda x: x if x >= 0 else 0
@@ -271,15 +272,15 @@ class USV_V1(gym.Env):
         veh_vel = local_pose_diff / self.veh.info['max_lin_velocity'] / d_t
         rew_vel = np.log(1+np.exp(-12*abs(veh_vel - vec_vel)))/np.log(2) # 2
         rew_ori = 0.5*np.log(1+np.exp(-8*abs(self.veh.obs['imu'][0][6]/self.veh.info['max_ang_velocity'] - ori_acc)))/np.log(2) # 1
-        rew1 = self.info['max_rew']*0.2*(2*(np.hstack((rew_ori, rew_vel)))-1).sum() / 2.5
+        rew1 = k2*(2*(np.hstack((rew_ori, rew_vel)))-1).sum() / 2.5
 
-        # reward of save energy
-        # rew2 = -k2*np.linalg.norm(relu(np.array([])), ord=1) / self.__action_shape[0]
+        # reward of position
         rew2 = 0
+        # rew2 = -k2*np.linalg.norm(relu(np.array([])), ord=1) / self.__action_shape[0]
 
         # reward of smooth action
-        # rew3 = -k3*np.linalg.norm(self.veh.obs['action'][0]-self.veh.obs['action'][1], ord=1) / self.__action_shape[0]
-        rew3 = 0
+        # rew3 = 0
+        rew3 = -k3*np.linalg.norm(self.veh.obs['action'][0]-self.veh.obs['action'][1], ord=1) / self.__action_shape[0]
 
         ###################### constraint ######################
         const = []
