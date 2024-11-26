@@ -238,11 +238,14 @@ class USV_V1(gym.Env):
         action_obs = veh_obs['action'][:, [0, 5]].flatten()
         # cmd_obs = np.array([self.cmd_vel[0], self.cmd_vel[1], self.cmd_vel[2], self.cmd_vel[3], self.cmd_vel[4], self.cmd_vel[5]])
         ref_yaw = self.refer_pose[2]
+        refer_ori = R.from_euler('xyz', [0, 0, self.refer_pose[2]]).as_quat()
+        refer_pose = np.hstack((np.hstack((self.refer_pose[:2], 0)), refer_ori))
+        local_pose_diff = relative_pose_tf(self.veh.obs['pose'][0], refer_pose)
         veh_yaw = R.from_quat([veh_obs['pose'][0][3], 
                                veh_obs['pose'][0][4], 
                                veh_obs['pose'][0][5], 
                                veh_obs['pose'][0][6]]).as_euler('xyz', degrees=False)[2]
-        obs = np.concatenate([imu_obs, action_obs, self.cmd_vel, np.hstack((self.veh.obs['pose'][0][:2]-self.refer_pose[:2], veh_yaw-ref_yaw))])
+        obs = np.concatenate([imu_obs, action_obs, self.cmd_vel, np.hstack((local_pose_diff[:2], veh_yaw-ref_yaw))])
         return obs
 
     def get_reward_constraint(self, cmd_vel, action):
