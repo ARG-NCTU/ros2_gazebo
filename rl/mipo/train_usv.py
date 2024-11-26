@@ -12,6 +12,23 @@ import numpy as np
 import torch as th
 
 
+def linear_schedule(initial_lr: float):
+    """
+    Linear learning rate schedule function.
+    Args:
+        initial_lr (float): The starting learning rate.
+    Returns:
+        Callable: A function that calculates the learning rate.
+    """
+    def lr_schedule(progress_remaining: float) -> float:
+        # Decrease learning rate linearly
+        return progress_remaining * initial_lr
+    return lr_schedule
+
+# Update learning rate to use the linear schedule
+initial_learning_rate = 1e-4
+learning_rate_schedule = linear_schedule(initial_learning_rate)
+
 warnings.filterwarnings("ignore")
 env = gym.make("gymnasium_arg:usv-v1", world='lake', veh='wamv_v2', max_thrust=15*746/9.8, hist_frame=150)
 # env = gym.make("gymnasium_arg:usv-v1", world='waves', veh='blueboat', max_thrust=10)
@@ -37,7 +54,7 @@ model = MIPO(
     env=env,
     verbose=1, 
     policy_kwargs=policy_kwargs, 
-    learning_rate=1e-6,
+    learning_rate=learning_rate_schedule,
     batch_size=128,
     n_steps=4096,
     num_constraints=2,  # Pass the number of constraints to the policy

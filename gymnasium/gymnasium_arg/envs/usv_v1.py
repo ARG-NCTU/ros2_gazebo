@@ -145,6 +145,7 @@ class USV_V1(gym.Env):
         self.__pause()
         # self.refer_pos = np.array([0, 0, 0], dtype=np.float32)
         self.refer_pose = np.array([0, 0, 0], dtype=np.float32)
+        self.cmd_vel = np.array([0.0, 0.0, 0.0])
         self.veh.reset()
         self.info['last_clock_time'] = None
         self.action = np.zeros(self.__action_shape)
