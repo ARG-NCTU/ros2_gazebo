@@ -3,7 +3,7 @@ import threading
 import gymnasium as gym
 import warnings
 from sb3_arg.policy.mipo import MIPO
-from sb3_arg.FeatureExtractor import USVFeatureExtractor
+from sb3_arg.FeatureExtractor import USVFeatureExtractor, USVGRUExtractor, USVCNNExtractor
 from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.env_util import make_vec_env
@@ -12,8 +12,25 @@ import numpy as np
 import torch as th
 
 
+def linear_schedule(initial_lr: float):
+    """
+    Linear learning rate schedule function.
+    Args:
+        initial_lr (float): The starting learning rate.
+    Returns:
+        Callable: A function that calculates the learning rate.
+    """
+    def lr_schedule(progress_remaining: float) -> float:
+        # Decrease learning rate linearly
+        return progress_remaining * initial_lr
+    return lr_schedule
+
+# Update learning rate to use the linear schedule
+initial_learning_rate = 1e-4
+learning_rate_schedule = linear_schedule(initial_learning_rate)
+
 warnings.filterwarnings("ignore")
-env = gym.make("gymnasium_arg:usv-v1", world='lake', veh='wamv_v2', max_thrust=15*746/9.8)
+env = gym.make("gymnasium_arg:usv-v1", world='lake', veh='wamv_v2', max_thrust=15*746/9.8, hist_frame=150)
 # env = gym.make("gymnasium_arg:usv-v1", world='waves', veh='blueboat', max_thrust=10)
 env = DummyVecEnv([lambda: env])
 
@@ -21,7 +38,7 @@ policy_kwargs = dict(
     activation_fn=th.nn.ReLU,
     net_arch=[dict(pi=[128, 128, 64], vf=[128, 128, 64])],
     features_extractor_class=USVFeatureExtractor,
-    features_extractor_kwargs=dict(hist_frame=50, imu_size=10, action_size=6, cmd_size=6, refer_size=4, latent_dim=32),
+    features_extractor_kwargs=dict(hist_frame=150, imu_size=10, action_size=2, cmd_size=3, refer_size=3, latent_dim=6+128),
 )
 
 today = date.today()
@@ -37,11 +54,11 @@ model = MIPO(
     env=env,
     verbose=1, 
     policy_kwargs=policy_kwargs, 
-    learning_rate=1e-6,
+    learning_rate=learning_rate_schedule,
     batch_size=128,
     n_steps=4096,
     num_constraints=2,  # Pass the number of constraints to the policy
-    constraint_thresholds=np.array([0.01, 0.1]),  # Initial thresholds d_k
+    constraint_thresholds=np.array([0.1, 0.5]),  # Initial thresholds d_k
     barrier_coefficient=100.0,                      # Hyperparameter t
     alpha=0.02,                                   # Hyperparameter α
     n_epochs=10,

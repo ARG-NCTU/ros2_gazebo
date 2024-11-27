@@ -477,6 +477,9 @@ class MIPO(PPO):
         # Update optimizer learning rate
         self._update_learning_rate(self.policy.optimizer)
 
+        # Get current learning rate
+        current_lr = self.policy.optimizer.param_groups[0]['lr']
+
         # Get current clip range
         clip_range = self.clip_range
         if callable(clip_range):
@@ -599,6 +602,7 @@ class MIPO(PPO):
             self.logger.record("train/approx_kl", np.mean(approx_kl_divs))
             self.logger.record("train/explained_variance", explained_var)
             self.logger.record("train/mean_reward", np.mean(self.rollout_buffer.rewards))
+            self.logger.record("train/learning_rate", current_lr)
             for i in range(self.num_constraints):
                 self.logger.record(f"train/dynamic_threshold_{i}", self.dynamic_constraint_thresholds[i])
 

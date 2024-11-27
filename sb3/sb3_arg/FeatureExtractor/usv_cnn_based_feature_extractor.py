@@ -4,9 +4,9 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from gymnasium.spaces import Box
 
 
-class USVFeatureExtractor(BaseFeaturesExtractor):
+class USVCNNExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: Box, hist_frame: int = 50, imu_size: int = 10, action_size: int = 6, cmd_size: int = 6, refer_size: int = 4, latent_dim: int = 32):
-        super(USVFeatureExtractor, self).__init__(observation_space, features_dim=latent_dim)
+        super(USVCNNExtractor, self).__init__(observation_space, features_dim=latent_dim)
         
         # Save parameters as attributes
         self.hist_frame = hist_frame
@@ -24,28 +24,41 @@ class USVFeatureExtractor(BaseFeaturesExtractor):
         
         # IMU processing
         self.imu_extractor = nn.Sequential(
-            nn.Linear(self.imu_length, 128),
+            nn.Linear(self.imu_length, 32, kernel_size=3, stride=1),
             nn.ReLU(),
-            nn.Linear(128, 64),
+            nn.Conv1d(32, 64, kernel_size=3, stride=1),
             nn.ReLU(),
+            nn.Flatten()
         )
+        imu_input_shape = (self.hist_frame, self.imu_size)
+        imu_flattened_dim = self._get_flattened_dim(imu_input_shape, self.imu_extractor)
 
         # Action processing
         self.action_extractor = nn.Sequential(
-            nn.Linear(self.action_length, 128),
+            nn.Conv1d(self.action_size, 16, kernel_size=3, stride=1),
             nn.ReLU(),
-            nn.Linear(128, 64),
+            nn.Conv1d(16, 32, kernel_size=3, stride=1),
             nn.ReLU(),
+            nn.Flatten()
         )
+        action_input_shape = (self.hist_frame, self.action_size)
+        action_flattened_dim = self._get_flattened_dim(action_input_shape, self.action_extractor)
         
         # Final linear layer to produce latent representation
         self.fc = nn.Sequential(
-            nn.Linear(64 + 64 + self.cmd_length + self.refer_length, self.latent_dim),
+            nn.Linear(imu_flattened_dim + action_flattened_dim + self.cmd_length + self.refer_length, self.latent_dim),
+            nn.ReLU(),
+            nn.Linear(self.latent_dim, self.latent_dim),
             nn.ReLU(),
             nn.Linear(self.latent_dim, self.latent_dim),
             nn.ReLU(),
         )
     
+    def _get_flattened_dim(self, input_shape, extractor):
+        sample_input = torch.zeros(1, *input_shape).permute(0, 2, 1)  # Permute for Conv1d compatibility
+        with torch.no_grad():
+            return extractor(sample_input).view(-1).shape[0]
+
     def forward(self, observations):
         # Extract IMU and action observations from the flat observation vector
         imu_end = self.imu_length
@@ -53,8 +66,8 @@ class USVFeatureExtractor(BaseFeaturesExtractor):
         cmd_end = action_end + self.cmd_length
         refer_end = cmd_end + self.refer_length
 
-        imu_obs = observations[:, :imu_end]
-        action_obs = observations[:, imu_end:action_end]
+        imu_obs = observations[:, :imu_end].view(-1, self.hist_frame, self.imu_size).permute(0, 2, 1)
+        action_obs = observations[:, imu_end:action_end].view(-1, self.hist_frame, self.action_size).permute(0, 2, 1)
         cmd_obs = observations[:, action_end:cmd_end]
         refer_obs = observations[:, cmd_end:refer_end]
         
