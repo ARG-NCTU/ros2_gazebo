@@ -59,6 +59,57 @@ class MIPOActorCriticPolicy(ActorCriticPolicy):
 
         # Overwrite value_net to use our custom reward head
         self.value_net = self.mlp_extractor.reward_head  # Use the reward head as value_net
+        self.cost_value_net = self.mlp_extractor.cost_heads
+
+    def forward(self, obs: th.Tensor, deterministic: bool = False) -> Tuple[th.Tensor, th.Tensor, th.Tensor]:
+        """
+        Forward pass in all the networks (actor and critic)
+
+        :param obs: Observation
+        :param deterministic: Whether to sample or use deterministic actions
+        :return: action, value and log probability of the action
+        """
+        # Preprocess the observation if needed
+        features = self.extract_features(obs)
+        if self.share_features_extractor:
+            latent_pi, latent_vf, latent_cost_vf = self.mlp_extractor(features)
+        else:
+            pi_features, vf_features = features
+            latent_pi = self.mlp_extractor.forward_actor(pi_features)
+            latent_vf = self.mlp_extractor.forward_critic(vf_features)
+            latent_cost_vf = self.mlp_extractor.forward_cost_critic(vf_features)
+        # Evaluate the values for the given observations
+        values = self.value_net(latent_vf)
+        distribution = self._get_action_dist_from_latent(latent_pi)
+        actions = distribution.get_actions(deterministic=deterministic)
+        log_prob = distribution.log_prob(actions)
+        actions = actions.reshape((-1, *self.action_space.shape))  # type: ignore[misc]
+        return actions, values, log_prob
+    
+    def evaluate_actions(self, obs: th.Tensor, actions: th.Tensor) -> Tuple[th.Tensor, th.Tensor, Optional[th.Tensor]]:
+        """
+        Evaluate actions according to the current policy,
+        given the observations.
+
+        :param obs: Observation
+        :param actions: Actions
+        :return: estimated value, log likelihood of taking those actions
+            and entropy of the action distribution.
+        """
+        # Preprocess the observation if needed
+        features = self.extract_features(obs)
+        if self.share_features_extractor:
+            latent_pi, latent_vf, latent_cost_vf = self.mlp_extractor(features)
+        else:
+            pi_features, vf_features = features
+            latent_pi = self.mlp_extractor.forward_actor(pi_features)
+            latent_vf = self.mlp_extractor.forward_critic(vf_features)
+            latent_cost_vf = self.mlp_extractor.forward_cost_critic(vf_features)
+        distribution = self._get_action_dist_from_latent(latent_pi)
+        log_prob = distribution.log_prob(actions)
+        values = self.value_net(latent_vf)
+        entropy = distribution.entropy()
+        return values, log_prob, entropy
 
     def get_cost_values(self, obs: th.Tensor) -> List[th.Tensor]:
         """
@@ -68,7 +119,7 @@ class MIPOActorCriticPolicy(ActorCriticPolicy):
         :return: List of cost values
         """
         features = self.extract_features(obs)
-        _, latent_vf = self.mlp_extractor(features)
+        _, _, latent_vf = self.mlp_extractor(features)
         cost_values = [head(latent_vf) for head in self.mlp_extractor.cost_heads]
         return cost_values
 
@@ -134,6 +185,7 @@ class SharedValueNetwork(nn.Module):
             last_layer_dim_vf = layer_size
 
         self.value_net = nn.Sequential(*value_layers)
+        self.cost_value_net = nn.Sequential(*value_layers)
         # Heads for reward and cost values
         self.reward_head = nn.Linear(last_layer_dim_vf, 1)
         self.cost_heads = nn.ModuleList(
@@ -148,17 +200,23 @@ class SharedValueNetwork(nn.Module):
         shared_features = self.shared_net(features)
         policy_features = self.policy_net(shared_features)
         value_features = self.value_net(shared_features)
-        return policy_features, value_features
+        cost_value_feature = self.cost_value_net(shared_features)
+        return policy_features, value_features, cost_value_feature
 
     def forward_actor(self, features: th.Tensor) -> th.Tensor:
         """Extract policy features."""
-        policy_features, _ = self.forward(features)
+        policy_features, _, _ = self.forward(features)
         return policy_features
 
     def forward_critic(self, features: th.Tensor) -> th.Tensor:
         """Extract value features."""
-        _, value_features = self.forward(features)
+        _, value_features, _ = self.forward(features)
         return value_features
+    
+    def forward_cost_critic(self, features: th.Tensor) -> th.Tensor:
+        """Extract cost value features."""
+        _, _, cost_value_features = self.forward(features)
+        return cost_value_features
 
 # Custom sample data structure
 ConstrainedRolloutBufferSamples = namedtuple(
@@ -334,7 +392,7 @@ class MIPO(PPO):
         self.alpha = alpha
         self.barrier_coefficient = barrier_coefficient
         constraint_thresholds = constraint_thresholds
-        super(MIPO, self).__init__(*args, policy, **kwargs)
+        super(MIPO, self).__init__(*args, policy=policy, **kwargs)
         # Set default thresholds if not provided
         if constraint_thresholds is None:
             constraint_thresholds = np.array([0.1] * self.num_constraints)
@@ -543,6 +601,18 @@ class MIPO(PPO):
             self.logger.record("train/mean_reward", np.mean(self.rollout_buffer.rewards))
             for i in range(self.num_constraints):
                 self.logger.record(f"train/dynamic_threshold_{i}", self.dynamic_constraint_thresholds[i])
+
+    # @classmethod
+    # def load(cls, path, env=None, **kwargs):
+    #     print(env)
+    #     model = super(MIPO, cls).load(path=path, env=env, **kwargs)
+
+    #     print(f"Loaded MIPO with num_constraints={model.num_constraints}, "
+    #           f"constraint_thresholds={model.constraint_thresholds}, "
+    #           f"barrier_coefficient={model.barrier_coefficient}, alpha={model.alpha}")
+        
+    #     return model
+
 
     def _update_learning_rate(self, optimizer):
         # Update the optimizer's learning rate
