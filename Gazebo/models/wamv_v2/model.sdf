@@ -735,7 +735,7 @@
     </joint>
     
     <!-- Left Lateral Engine Link -->
-    <link name="left_front_engine_link">
+    <!-- <link name="left_front_engine_link">
         <pose>1.20 0.90 0.318237 0.0 0.0 1.5707</pose>
         <visual name="left_front_engine_visual">
         <geometry>
@@ -919,7 +919,7 @@
             <damping>0.05</damping>
             <friction>0.05</friction>
         </dynamics>
-    </joint>
+    </joint> -->
     
   
   
@@ -1070,7 +1070,7 @@
         <fluid_density>1000</fluid_density>
         <propeller_diameter>0.2</propeller_diameter>
         <velocity_control>true</velocity_control>
-        <max_thrust_cmd>1141.83673</max_thrust_cmd>
+        <max_thrust_cmd>116.513952</max_thrust_cmd>
     </plugin>
 
     <plugin
@@ -1085,7 +1085,7 @@
         <max_effort>10.0</max_effort>             <!-- Effort limit -->
     </plugin>
 
-    <plugin
+    <!-- <plugin
         filename="gz-sim-thruster-system"
         name="gz::sim::systems::Thruster">
         <topic>//joint/left_front/thruster/cmd_thrust</topic>
@@ -1095,7 +1095,7 @@
         <propeller_diameter>0.2</propeller_diameter>
         <velocity_control>true</velocity_control>
         <max_thrust_cmd>1141.83673</max_thrust_cmd>
-    </plugin>
+    </plugin> -->
 
     <plugin
         filename="gz-sim-thruster-system"
@@ -1122,7 +1122,7 @@
     </plugin>
 
 
-    <plugin
+    <!-- <plugin
         filename="gz-sim-thruster-system"
         name="gz::sim::systems::Thruster">
         <topic>//joint/right_front/thruster/cmd_thrust</topic>
@@ -1132,7 +1132,7 @@
         <propeller_diameter>0.2</propeller_diameter>
         <velocity_control>true</velocity_control>
         <max_thrust_cmd>116.513952</max_thrust_cmd>
-    </plugin>
+    </plugin> -->
 
     <!-- odometry publisher -->
     <plugin name="gz::sim::systems::OdometryPublisher"
