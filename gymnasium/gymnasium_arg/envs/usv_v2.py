@@ -181,7 +181,7 @@ class USV_V2(gym.Env):
         state['reward'], state['constraint_costs'] = self.get_reward_constraint(self.cmd_vel)
 
         sgn_bool = lambda x: True if x >= 0 else False
-        output = "\rstep:{:4d}, cmd: [x:{}, y:{}, yaw:{}], action: [l_t:{}, r_t:{}, l_a:{}, r_a:{}], rews: [{}, {}, {}] const:[{}, {}]".format(
+        output = "\rstep:{:4d}, cmd: [x:{}, y:{}, yaw:{}], action: [l_t:{}, r_t:{}, l_a:{}, r_a:{}], rews: [{}, {}, {}] const:[{}]".format(
             self.veh.info['step_cnt'],
             " {:4.2f}".format(self.cmd_vel[0]) if sgn_bool(self.cmd_vel[0]) else "{:4.2f}".format(self.cmd_vel[0]),
             " {:4.2f}".format(self.cmd_vel[1]) if sgn_bool(self.cmd_vel[1]) else "{:4.2f}".format(self.cmd_vel[1]),
@@ -194,7 +194,7 @@ class USV_V2(gym.Env):
             " {:4.2f}".format(state['reward'][1]) if sgn_bool(state['reward'][1]) else "{:4.2f}".format(state['reward'][1]),
             " {:4.2f}".format(state['reward'][2]) if sgn_bool(state['reward'][2]) else "{:4.2f}".format(state['reward'][2]),
             " {:4.2f}".format(state['constraint_costs'][0]) if sgn_bool(state['constraint_costs'][0]) else "{:4.2f}".format(state['constraint_costs'][0]),
-            " {:4.2f}".format(state['constraint_costs'][1]) if sgn_bool(state['constraint_costs'][1]) else "{:4.2f}".format(state['constraint_costs'][1]),
+            # " {:4.2f}".format(state['constraint_costs'][1]) if sgn_bool(state['constraint_costs'][1]) else "{:4.2f}".format(state['constraint_costs'][1]),
         )
         sys.stdout.write(output)
         sys.stdout.flush()
@@ -204,8 +204,8 @@ class USV_V2(gym.Env):
         # if (state['constraint_costs'][0] > 0.8 or state['constraint_costs'][1] > 0.3) and self.veh.info['step_cnt'] % 30 == 0:
         #     state['termination'] = True
 
-        if state['termination']:
-            state['reward'] = -1.0
+        if state['reward'] <= -1.5:
+            state['termination'] = True
 
         if self.veh.info['step_cnt'] % 1024 == 0:
             x = random.uniform(-1, 1)
@@ -218,6 +218,9 @@ class USV_V2(gym.Env):
             self.refer_pose = np.hstack((self.veh.obs['pose'][0][:2], yaw))
         info = self.veh.info
         info['constraint_costs'] = np.array(state['constraint_costs'], dtype=np.float32)
+
+        if state['termination'] or state['truncation'] or self.veh.info['step_cnt'] >= self.info['maxstep']:
+            self.veh.step(np.zeros(self.__action_shape))
 
         self.__pause()
         
@@ -277,7 +280,7 @@ class USV_V2(gym.Env):
 
         # reward of thrust
         cmd_vel_norm = np.linalg.norm(cmd_vel[:2], ord=2)
-        rew2 = 1 + 2*(abs(self.action[:2])-cmd_vel_norm)
+        rew2 = 1 - 2*(abs(self.action[:2])-cmd_vel_norm)
         rew2 = k2*np.sum(rew2) / 2
         # rew2 = -k2*np.linalg.norm(relu(np.array([])), ord=1) / self.__action_shape[0]
 
@@ -297,7 +300,7 @@ class USV_V2(gym.Env):
         #     const.append(
         #         (1 - dot_product / (magnitude_cmd * magnitude_vel))*0.1
         #     )
-        const.append(0.0)
+        # const.append(0.0)
 
         # dir constraint
         veh_yaw = R.from_quat([self.veh.obs['pose'][0][3], 
