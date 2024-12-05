@@ -14,9 +14,9 @@ class MATH_USV_V1(gym.Env):
 
     metadata = {"render_modes": ["human", "none"]}
 
-    def __init__(self, render_mode="none", hist_frame=50, seed=0):
+    def __init__(self, render_mode="none", hist_frame=50, seed=0, device='cpu'):
         super(MATH_USV_V1, self).__init__()
-
+        self.device = torch.device(device if torch.cuda.is_available() else 'cpu')
         assert render_mode in self.metadata["render_modes"], "Invalid render mode"
         self.render_mode = render_mode
         self.info = {
@@ -101,7 +101,7 @@ class MATH_USV_V1(gym.Env):
         # Reset state: [x, y, theta, v, omega]
         self.state = torch.tensor(
             # [x_new, y_new, theta_new, vx_new, vy_new, omega_new]
-            [400.0, 300.0, 0.0, 0.0, 0.0, 0.0], dtype=torch.float32
+            [400.0, 300.0, 0.0, 0.0, 0.0, 0.0], dtype=torch.float32, device=self.device
         )  # Start in the center
 
         # Reset IMU data
@@ -167,7 +167,7 @@ class MATH_USV_V1(gym.Env):
         # reward of following cmd_vel dir
         refer_ori = R.from_euler('xyz', [0, 0, self.refer_pose[2]]).as_quat()
         refer_pose = np.hstack((np.hstack((self.refer_pose[:2], 0)), refer_ori))
-        local_pose_diff = relative_pose_tf(self.veh_obs['pose'][0], refer_pose)
+        local_pose_diff = relative_pose_tf(self.veh_obs['pose'][0], refer_pose, device=self.device)
         local_pose_norm = np.linalg.norm(local_pose_diff[:2], ord=2)
         cmd_dir = np.arctan2(self.cmd_vel[1], self.cmd_vel[0])
         veh_dir = np.arctan2(local_pose_diff[1], local_pose_diff[0])
@@ -252,7 +252,7 @@ class MATH_USV_V1(gym.Env):
         ref_yaw = self.refer_pose[2]
         refer_ori = R.from_euler('xyz', [0, 0, self.refer_pose[2]]).as_quat()
         refer_pose = np.hstack((np.hstack((self.refer_pose[:2], 0)), refer_ori))
-        local_pose_diff = relative_pose_tf(self.veh_obs['pose'][0], refer_pose)
+        local_pose_diff = relative_pose_tf(self.veh_obs['pose'][0], refer_pose, device=self.device)
         veh_yaw = R.from_quat([veh_pose[3], 
                                veh_pose[4], 
                                veh_pose[5], 
@@ -281,27 +281,27 @@ class MATH_USV_V1(gym.Env):
         x, y, theta, vx, vy, omega = state
 
         # Convert angles to tensors
-        angle_left = torch.tensor(angle_left, dtype=torch.float32)
-        angle_right = torch.tensor(angle_right, dtype=torch.float32)
+        angle_left = torch.tensor(angle_left, dtype=torch.float32, device=self.device)
+        angle_right = torch.tensor(angle_right, dtype=torch.float32, device=self.device)
 
         # Thruster positions relative to the center of mass
-        left_thruster_pos = torch.tensor([-self.veh_body['length'] / 2, self.veh_body['width'] / 2])
-        right_thruster_pos = torch.tensor([-self.veh_body['length'] / 2, -self.veh_body['width'] / 2])
+        left_thruster_pos = torch.tensor([-self.veh_body['length'] / 2, self.veh_body['width'] / 2], device=self.device)
+        right_thruster_pos = torch.tensor([-self.veh_body['length'] / 2, -self.veh_body['width'] / 2], device=self.device)
 
         # Forces in local frame
         force_left_local = torch.tensor([
             mag_left * torch.sqrt(1 - torch.pow(angle_left, 2)), 
             mag_left * angle_left
-        ])
+        ], device=self.device)
         force_right_local = torch.tensor([
             mag_right * torch.sqrt(1 - torch.pow(angle_right, 2)), 
             mag_right * angle_right
-        ])
+        ], device=self.device)
 
         # Rotate forces to the global frame
         cos_theta = torch.cos(theta)
         sin_theta = torch.sin(theta)
-        rotation_matrix = torch.tensor([[cos_theta, -sin_theta], [sin_theta, cos_theta]])
+        rotation_matrix = torch.tensor([[cos_theta, -sin_theta], [sin_theta, cos_theta]], device=self.device)
 
         force_left_global = rotation_matrix @ force_left_local
         force_right_global = rotation_matrix @ force_right_local
@@ -332,15 +332,15 @@ class MATH_USV_V1(gym.Env):
         # IMU data: x, y, z, w, ax, ay, az, wx, wy, wz
         # theta_new is yaw and make imu_data[:4] to be orientation of it
         orientation = R.from_euler('xyz', [0, 0, theta_new]).as_quat()
-        imu_data = torch.tensor([orientation[0], orientation[1], orientation[2], orientation[3], ax, ay, -9.8, 0, 0, omega_new], dtype=torch.float32)
-        return torch.tensor([x_new, y_new, theta_new, vx_new, vy_new, omega_new], dtype=torch.float32), imu_data
+        imu_data = torch.tensor([orientation[0], orientation[1], orientation[2], orientation[3], ax, ay, -9.8, 0, 0, omega_new], dtype=torch.float32, device=self.device)
+        return torch.tensor([x_new, y_new, theta_new, vx_new, vy_new, omega_new], dtype=torch.float32, device=self.device), imu_data
 
     def _calculate_imu_data(self):
         """
         Calculates the initial IMU data from the initial state.
         """
         orientation = R.from_euler('xyz', [0, 0, self.state[2]]).as_quat()
-        return torch.tensor([orientation[0], orientation[1], orientation[2], orientation[3], 0.0, 0.0, -9.8, 0.0, 0.0, 0.0], dtype=torch.float32)
+        return torch.tensor([orientation[0], orientation[1], orientation[2], orientation[3], 0.0, 0.0, -9.8, 0.0, 0.0, 0.0], dtype=torch.float32, device=self.device)
 
     def _check_bounds(self):
         """
@@ -371,7 +371,7 @@ class MATH_USV_V1(gym.Env):
 
         # Ensure theta is a tensor for torch operations
         if not isinstance(theta, torch.Tensor):
-            theta = torch.tensor(theta)
+            theta = torch.tensor(theta, device=self.device)
 
         # Calculate corner points based on rotation
         corners = torch.tensor([
@@ -379,23 +379,23 @@ class MATH_USV_V1(gym.Env):
             [-length / 2, -width / 2],
             [-length / 2, width / 2],
             [length / 2, width / 2]
-        ])
+        ], device=self.device)
 
         # Rotation matrix
         rotation = torch.tensor([
             [torch.cos(theta), -torch.sin(theta)],
             [torch.sin(theta), torch.cos(theta)]
-        ])
+        ], device=self.device)
 
         # Apply rotation and translation
-        rotated_corners = (corners @ rotation.T) + torch.tensor([x, y])
+        rotated_corners = (corners @ rotation.T) + torch.tensor([x, y], device=self.device)
 
         # Convert to tuple for Pygame
         points = rotated_corners.tolist()
         pygame.draw.polygon(self.screen, (0, 0, 255), points)
 
 
-def relative_pose_tf(pose1, pose2):
+def relative_pose_tf(pose1, pose2, device='cpu'):
     """
     Calculate the relative pose of pose1 with respect to pose2 in the local frame using PyTorch.
 
@@ -408,9 +408,9 @@ def relative_pose_tf(pose1, pose2):
     """
     # Ensure pose1 and pose2 are tensors
     if not isinstance(pose1, torch.Tensor):
-        pose1 = torch.tensor(pose1, dtype=torch.float32)
+        pose1 = torch.tensor(pose1, dtype=torch.float32, device=device)
     if not isinstance(pose2, torch.Tensor):
-        pose2 = torch.tensor(pose2, dtype=torch.float32)
+        pose2 = torch.tensor(pose2, dtype=torch.float32, device=device)
 
     # Extract position and quaternion
     dx, dy = pose1[:2] - pose2[:2]
@@ -421,8 +421,8 @@ def relative_pose_tf(pose1, pose2):
     cosy_cosp = 1 - 2 * (qy * qy + qz * qz)
 
     # Ensure arguments to atan2 are tensors
-    siny_cosp = torch.tensor(siny_cosp, dtype=torch.float32)
-    cosy_cosp = torch.tensor(cosy_cosp, dtype=torch.float32)
+    siny_cosp = torch.tensor(siny_cosp, dtype=torch.float32, device=device)
+    cosy_cosp = torch.tensor(cosy_cosp, dtype=torch.float32, device=device)
 
     yaw = torch.atan2(siny_cosp, cosy_cosp)  # Extract yaw from quaternion
 
@@ -432,10 +432,10 @@ def relative_pose_tf(pose1, pose2):
     rotation_matrix = torch.tensor([
         [cos_yaw, -sin_yaw],
         [sin_yaw, cos_yaw]
-    ], dtype=torch.float32)
+    ], dtype=torch.float32, device=device)
 
     # Transform dx, dy into the local frame
-    local_pose_diff = torch.matmul(rotation_matrix, torch.tensor([dx, dy], dtype=torch.float32))
+    local_pose_diff = torch.matmul(rotation_matrix, torch.tensor([dx, dy], dtype=torch.float32, device=device))
 
     return local_pose_diff
 

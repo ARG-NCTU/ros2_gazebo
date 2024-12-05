@@ -18,7 +18,7 @@ def make_env(render_mode="none"):
     Helper function to create a new environment instance.
     """
     def _init():
-        return MATH_USV_V1(render_mode=render_mode)
+        return MATH_USV_V1(render_mode=render_mode, hist_frame=50, device='cuda')
     return _init
 
 def linear_schedule(initial_lr: float):
@@ -40,7 +40,7 @@ learning_rate_schedule = linear_schedule(initial_learning_rate)
 
 warnings.filterwarnings("ignore")
 
-n_envs = 100
+n_envs = 5000
 
 vec_env = make_vec_env(make_env(render_mode="none"), n_envs=n_envs)
 
