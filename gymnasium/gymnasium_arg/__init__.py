@@ -30,3 +30,9 @@ register(
     entry_point="gymnasium_arg.envs:USV_V1",
     max_episode_steps=4096,
 )
+
+register(
+    id="usv-v2",
+    entry_point="gymnasium_arg.envs:USV_V2",
+    max_episode_steps=4096,
+)
