@@ -23,7 +23,7 @@ class MATH_USV_V1(gym.Env):
             "hist_frame": hist_frame,
             "latent_dim": 32,
             'maxstep': 4096,
-            'max_thrust': 15*746/9.8,
+            'max_thrust': 15 * 746 / 9.8,
             'dt': 1 / 50,
             'max_rew': 100.0,
             'total_step': 0,
@@ -35,52 +35,39 @@ class MATH_USV_V1(gym.Env):
         self.drag_coefficient = 0.1  # Drag coefficient
         self.moment_of_inertia = 10.0  # Rotational inertia
         self.max_thrust = 100.0  # Max thrust for linear and angular controls
-        self.veh_obs = {
-            'imu': np.zeros((hist_frame, 10)),
-            'action': np.zeros((hist_frame, 4)),
-            'pose': np.zeros((hist_frame, 7)),
-        }
+
+        self.veh_obs = {}  # Initialize as empty dict; will be set in reset()
+
         self.veh_body = {
             'length': 40,
             'width': 20,
             'mass': 50.0,
         }
-        # Observation space: [local_acc_x, local_acc_y, angular_velocity, orientation]
-        # self.observation_space = spaces.Box(
-        #     low=np.array([-np.inf, -np.inf, -np.inf, -np.pi]),
-        #     high=np.array([np.inf, np.inf, np.inf, np.pi]),
-        #     dtype=np.float32,
-        # )
-        # Action space: [linear_thrust, angular_thrust]
-        # self.action_space = spaces.Box(
-        #     low=np.array([-self.max_thrust, -self.max_thrust]),
-        #     high=np.array([self.max_thrust, self.max_thrust]),
-        #     dtype=np.float32,
-        # )
-        self.__action_shape = (4, )
+
+        self.__action_shape = (4,)
         self.__obs_shape = {
             'imu': (hist_frame, 10),
             'action': (hist_frame, 4),
             'latent': self.info['latent_dim'],
-            # 'rl_obs': 6+self.info['latent_dim'],
-            'cmd_vel': (3, ),
-            'refer': (3, ),
+            'cmd_vel': (3,),
+            'refer': (3,),
         }
 
-        self.cmd_vel = np.array([0.0, 0.0, 0.0])
-        self.refer_pose = np.array([0, 0, 0], dtype=np.float32)
+        # Initialize cmd_vel and refer_pose as tensors
+        self.cmd_vel = torch.zeros(3, device=self.device)
+        self.refer_pose = torch.zeros(3, device=self.device)
 
         self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=self.__action_shape, dtype=np.float32, seed=seed)
         self.observation_space = gym.spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(np.prod(self.__obs_shape['imu'])+np.prod(self.__obs_shape['action'])+np.prod(self.__obs_shape['cmd_vel'])+np.prod(self.__obs_shape['refer']),),
+            shape=(np.prod(self.__obs_shape['imu']) + np.prod(self.__obs_shape['action']) + np.prod(self.__obs_shape['cmd_vel']) + np.prod(self.__obs_shape['refer']),),
             dtype=np.float32,
             seed=seed
         )
         # Initialize state
-        self.state = None  # [x, y, theta, v, omega]
-        self.imu_data = None  # [local_acc_x, local_acc_y, angular_velocity, orientation]
+        self.state = None  # [x, y, theta, vx, vy, omega]
+        self.imu_data = None  # [orientation (4,), acceleration (3,), angular_velocity (3,)]
 
         # World bounds
         self.world_size = np.array([800.0, 600.0])  # Width, Height
@@ -97,25 +84,24 @@ class MATH_USV_V1(gym.Env):
         Resets the environment to its initial state.
         """
         super().reset(seed=seed)
-        
-        # Reset state: [x, y, theta, v, omega]
+
+        # Reset state: [x, y, theta, vx, vy, omega]
         self.state = torch.tensor(
-            # [x_new, y_new, theta_new, vx_new, vy_new, omega_new]
             [400.0, 300.0, 0.0, 0.0, 0.0, 0.0], dtype=torch.float32, device=self.device
         )  # Start in the center
 
         # Reset IMU data
         self.imu_data = self._calculate_imu_data()
         self.veh_obs = {
-            'imu': np.full((self.info['hist_frame'], 10), self.imu_data.numpy()),
-            'action': np.zeros((self.info['hist_frame'], 4)),
+            'imu': self.imu_data.repeat(self.info['hist_frame'], 1).to(self.device),  # Repeat imu_data for history
+            'action': torch.zeros((self.info['hist_frame'], 4), device=self.device),  # Use torch for action buffer
         }
         ori = self.veh_obs['imu'][0][:4]
-        pose = np.array([self.state[0], self.state[1], 0.0, ori[0], ori[1], ori[2], ori[3]], dtype=np.float32)
-        self.veh_obs['pose'] = np.full((self.info['hist_frame'], 7), pose)
-        self.refer_pose = np.array([self.state[0], self.state[1], self.state[2]], dtype=np.float32)
-        self.cmd_vel = np.array([0.0, 0.0, 0.0])
-        self.action = np.zeros(self.__action_shape)
+        pose = torch.cat([self.state[:2], torch.tensor([0.0], device=self.device), ori], dim=0)
+        self.veh_obs['pose'] = pose.repeat(self.info['hist_frame'], 1).to(self.device)
+        self.cmd_vel = torch.zeros(3, device=self.device)
+        self.refer_pose = torch.tensor([self.state[0], self.state[1], self.state[2]], device=self.device)
+        self.action = torch.zeros(self.__action_shape, device=self.device)
         self.info['step_cnt'] = 0
 
         if self.render_mode == "human":
@@ -139,14 +125,16 @@ class MATH_USV_V1(gym.Env):
             self.state, mag_left, mag_right, angle_left, angle_right, self.dt
         )
 
-        # Update observation buffers
-        self.veh_obs['imu'] = np.roll(self.veh_obs['imu'], 1, axis=0)
-        self.veh_obs['imu'][0] = self.imu_data.numpy()
-        self.veh_obs['action'] = np.roll(self.veh_obs['action'], 1, axis=0)
-        self.veh_obs['action'][0] = action
-        pose = np.array([self.state[0], self.state[1], 0.0, self.imu_data[0], self.imu_data[1], self.imu_data[2], self.imu_data[3]], dtype=np.float32)
-        self.veh_obs['pose'] = np.roll(self.veh_obs['pose'], 1, axis=0)
+        # Update observation buffers using torch.roll
+        self.veh_obs['imu'] = torch.roll(self.veh_obs['imu'], shifts=1, dims=0)
+        self.veh_obs['imu'][0] = self.imu_data
+        self.veh_obs['action'] = torch.roll(self.veh_obs['action'], shifts=1, dims=0)
+        self.veh_obs['action'][0] = torch.tensor(action, device=self.device, dtype=torch.float32)
+
+        pose = torch.cat([self.state[:2], torch.tensor([0.0], device=self.device), self.imu_data[:4]], dim=0)
+        self.veh_obs['pose'] = torch.roll(self.veh_obs['pose'], shifts=1, dims=0)
         self.veh_obs['pose'][0] = pose
+
         info = {}
         termination = False
         truncation = False
@@ -156,80 +144,89 @@ class MATH_USV_V1(gym.Env):
         k1 = 60
         k2 = 30
         k3 = 10
-        operator = lambda x: 1 if x >= 0 else -1
-        # sigmoid = lambda x: 1/(1+np.exp(-x))
-        relu = lambda x: x if x >= 0 else 0
-        '''
-            1. reward of following dir vel
-            2. reward of followning norm vel
-            3. reward of smooth action
-        '''
-        # reward of following cmd_vel dir
-        refer_ori = R.from_euler('xyz', [0, 0, self.refer_pose[2]]).as_quat()
-        refer_pose = np.hstack((np.hstack((self.refer_pose[:2], 0)), refer_ori))
+
+        # Replace operator and relu with tensor-compatible functions
+        operator = lambda x: torch.where(x >= 0, torch.tensor(1.0, device=self.device), torch.tensor(-1.0, device=self.device))
+        relu = lambda x: torch.clamp(x, min=0)
+
+        # Reward of following cmd_vel direction
+        ref_yaw = self.refer_pose[2].cpu().item()
+        refer_ori = R.from_euler('xyz', [0, 0, ref_yaw]).as_quat()
+        refer_ori_tensor = torch.tensor(refer_ori, device=self.device, dtype=torch.float32)
+        refer_pose = torch.cat([
+            self.refer_pose[:2],
+            torch.tensor([0.0], device=self.device),
+            refer_ori_tensor
+        ])
+
         local_pose_diff = relative_pose_tf(self.veh_obs['pose'][0], refer_pose, device=self.device)
-        local_pose_norm = np.linalg.norm(local_pose_diff[:2], ord=2)
-        cmd_dir = np.arctan2(self.cmd_vel[1], self.cmd_vel[0])
-        veh_dir = np.arctan2(local_pose_diff[1], local_pose_diff[0])
+        local_pose_norm = torch.norm(local_pose_diff[:2], p=2)
+        cmd_dir = torch.atan2(self.cmd_vel[1], self.cmd_vel[0])
+        veh_dir = torch.atan2(local_pose_diff[1], local_pose_diff[0])
 
-        theta = np.cos(veh_dir - cmd_dir)
-        rew1 = k1*theta-relu(-operator(theta)*local_pose_norm)
+        theta = torch.cos(veh_dir - cmd_dir)
+        rew1 = k1 * theta - relu(-operator(theta) * local_pose_norm)
 
-        # reward of thrust
-        cmd_vel_norm = np.linalg.norm(self.cmd_vel[:2], ord=2)
-        rew2 = 1 - 2*(abs(self.action[:2])-cmd_vel_norm)
-        rew2 = k2*np.sum(rew2) / 2
-        # rew2 = -k2*np.linalg.norm(relu(np.array([])), ord=1) / self.__action_shape[0]
+        # Reward of thrust
+        cmd_vel_norm = torch.norm(self.cmd_vel[:2], p=2)
+        action_tensor = torch.tensor(self.action[:2], device=self.device, dtype=torch.float32)
+        rew2 = 1 - 2 * (torch.abs(action_tensor) - cmd_vel_norm)
+        rew2 = k2 * torch.sum(rew2) / 2
 
-        # reward of smooth action
-        rew3 = -k3*np.linalg.norm(self.veh_obs['action'][0]-self.veh_obs['action'][1], ord=1) / self.__action_shape[0]
-        ###################### constraint ######################
+        # Reward of smooth action
+        rew3 = -k3 * torch.norm(self.veh_obs['action'][0] - self.veh_obs['action'][1], p=1) / self.__action_shape[0]
+
+        # Constraint
         const = []
-        veh_yaw = R.from_quat([self.veh_obs['pose'][0][3], 
-                               self.veh_obs['pose'][0][4], 
-                               self.veh_obs['pose'][0][5], 
-                               self.veh_obs['pose'][0][6]]).as_euler('xyz', degrees=False)[2]
-        ref_yaw = self.refer_pose[2]
-        const.append(
-            (1-np.cos(veh_yaw - ref_yaw))/2
-        )
+        veh_quat = self.veh_obs['pose'][0][3:7].cpu().numpy()
+        veh_yaw = R.from_quat(veh_quat).as_euler('xyz', degrees=False)[2]
+        ref_yaw = self.refer_pose[2].cpu().item()
+        const_value = (1 - np.cos(veh_yaw - ref_yaw)) / 2
+        const.append(const_value)
 
-        rew1 = rew1/self.info['max_rew']
-        rew2 = rew2/self.info['max_rew']
-        rew3 = rew3/self.info['max_rew']
+        # Normalize rewards
+        rew1 = rew1 / self.info['max_rew']
+        rew2 = rew2 / self.info['max_rew']
+        rew3 = rew3 / self.info['max_rew']
 
+        # Convert rewards to scalars for logging and further processing
+        rew1_value = rew1.item()
+        rew2_value = rew2.item()
+        rew3_value = rew3.item()
+        rew = rew1_value + rew2_value + rew3_value
+
+        # Output formatting
         sgn_bool = lambda x: True if x >= 0 else False
         output = "\rstep:{:4d}, cmd: [x:{}, y:{}, yaw:{}], action: [l_t:{}, r_t:{}, l_a:{}, r_a:{}], rews: [{}, {}, {}] const:[{}]".format(
             self.info['step_cnt'],
-            " {:4.2f}".format(self.cmd_vel[0]) if sgn_bool(self.cmd_vel[0]) else "{:4.2f}".format(self.cmd_vel[0]),
-            " {:4.2f}".format(self.cmd_vel[1]) if sgn_bool(self.cmd_vel[1]) else "{:4.2f}".format(self.cmd_vel[1]),
-            " {:4.2f}".format(self.cmd_vel[2]) if sgn_bool(self.cmd_vel[2]) else "{:4.2f}".format(self.cmd_vel[2]),
+            " {:4.2f}".format(self.cmd_vel[0].item()) if sgn_bool(self.cmd_vel[0].item()) else "{:4.2f}".format(self.cmd_vel[0].item()),
+            " {:4.2f}".format(self.cmd_vel[1].item()) if sgn_bool(self.cmd_vel[1].item()) else "{:4.2f}".format(self.cmd_vel[1].item()),
+            " {:4.2f}".format(self.cmd_vel[2].item()) if sgn_bool(self.cmd_vel[2].item()) else "{:4.2f}".format(self.cmd_vel[2].item()),
             " {:4.2f}".format(action[0]) if sgn_bool(action[0]) else "{:4.2f}".format(action[0]),
             " {:4.2f}".format(action[1]) if sgn_bool(action[1]) else "{:4.2f}".format(action[1]),
             " {:4.2f}".format(action[2]) if sgn_bool(action[2]) else "{:4.2f}".format(action[2]),
             " {:4.2f}".format(action[3]) if sgn_bool(action[3]) else "{:4.2f}".format(action[3]),
-            " {:4.2f}".format(rew1) if sgn_bool(rew1) else "{:4.2f}".format(rew1),
-            " {:4.2f}".format(rew2) if sgn_bool(rew2) else "{:4.2f}".format(rew2),
-            " {:4.2f}".format(rew3) if sgn_bool(rew3) else "{:4.2f}".format(rew3),
+            " {:4.2f}".format(rew1_value) if sgn_bool(rew1_value) else "{:4.2f}".format(rew1_value),
+            " {:4.2f}".format(rew2_value) if sgn_bool(rew2_value) else "{:4.2f}".format(rew2_value),
+            " {:4.2f}".format(rew3_value) if sgn_bool(rew3_value) else "{:4.2f}".format(rew3_value),
             " {:4.2f}".format(const[0]) if sgn_bool(const[0]) else "{:4.2f}".format(const[0]),
-            # " {:4.2f}".format(const[1]) if sgn_bool(const[1]) else "{:4.2f}".format(const[1]),
         )
         sys.stdout.write(output)
         sys.stdout.flush()
 
-        rew = rew1 + rew2 + rew3
+        # Update for termination
         if rew <= -1.5:
             termination = True
+
+        # Update cmd_vel and refer_pose every 1024 steps
         if self.info['step_cnt'] % 1024 == 0:
             x = random.uniform(-1, 1)
-            y = np.sqrt(1 - x**2)*random.uniform(-1, 1)
-            self.cmd_vel = np.array([x, y, 0])
-            yaw = R.from_quat([self.veh_obs['pose'][0][3], 
-                               self.veh_obs['pose'][0][4], 
-                               self.veh_obs['pose'][0][5], 
-                               self.veh_obs['pose'][0][6]]).as_euler('xyz', degrees=False)[2]  # Extract yaw
-            self.refer_pose = np.hstack((self.veh_obs['pose'][0][:2], yaw))
-        
+            y = np.sqrt(1 - x ** 2) * random.uniform(-1, 1)
+            self.cmd_vel = torch.tensor([x, y, 0.0], device=self.device, dtype=torch.float32)
+            yaw_quat = self.veh_obs['pose'][0][3:7].cpu().numpy()
+            yaw = R.from_quat(yaw_quat).as_euler('xyz', degrees=False)[2]
+            self.refer_pose = torch.cat([self.veh_obs['pose'][0][:2], torch.tensor([yaw], device=self.device, dtype=torch.float32)])
+
         info['constraint_costs'] = np.array(const, dtype=np.float32)
 
         if self.info['step_cnt'] >= self.info['maxstep']:
@@ -238,27 +235,52 @@ class MATH_USV_V1(gym.Env):
         if self.render_mode == "human":
             self._render_pygame()
 
+        # Return values
         return obs, rew, termination, truncation, info
+
 
     def get_observation(self):
         """
         Returns the current observation from the environment.
         """
-        veh_pose = self.state.numpy()[:2]
+        # Convert state to CPU and NumPy
+        veh_pose = self.state.cpu().numpy()[:2]
         veh_pose = np.hstack((veh_pose, 0))
-        veh_pose = np.hstack((veh_pose, self.imu_data.numpy()[:4]))
-        imu_obs = self.veh_obs['imu'].flatten()
-        action_obs = self.veh_obs['action'].flatten()
-        ref_yaw = self.refer_pose[2]
-        refer_ori = R.from_euler('xyz', [0, 0, self.refer_pose[2]]).as_quat()
-        refer_pose = np.hstack((np.hstack((self.refer_pose[:2], 0)), refer_ori))
+        veh_pose = np.hstack((veh_pose, self.imu_data.cpu().numpy()[:4]))  # Convert IMU data as well
+
+        imu_obs = self.veh_obs['imu'].cpu().numpy().flatten()  # Convert to NumPy
+        action_obs = self.veh_obs['action'].cpu().numpy().flatten()  # Convert to NumPy
+
+        ref_yaw = self.refer_pose[2].cpu().item()
+        refer_ori = R.from_euler('xyz', [0, 0, ref_yaw]).as_quat()
+
+        # Construct refer_pose as a tensor
+        refer_pose = torch.cat([
+            self.refer_pose[:2],
+            torch.tensor([0.0], device=self.device, dtype=torch.float32),
+            torch.tensor(refer_ori, device=self.device, dtype=torch.float32)
+        ])
+
+        # Compute local pose difference
         local_pose_diff = relative_pose_tf(self.veh_obs['pose'][0], refer_pose, device=self.device)
-        veh_yaw = R.from_quat([veh_pose[3], 
-                               veh_pose[4], 
-                               veh_pose[5], 
-                               veh_pose[6]]).as_euler('xyz', degrees=False)[2]
-        obs = np.concatenate([imu_obs, action_obs, self.cmd_vel, np.hstack((local_pose_diff[:2], veh_yaw-ref_yaw))])
+        local_pose_diff_np = local_pose_diff.cpu().numpy()  # Convert to NumPy for concatenation
+
+        veh_yaw = R.from_quat([
+            veh_pose[3],
+            veh_pose[4],
+            veh_pose[5],
+            veh_pose[6]
+        ]).as_euler('xyz', degrees=False)[2]
+
+        # Convert all parts to NumPy-compatible formats before concatenation
+        obs = np.concatenate([
+            imu_obs,
+            action_obs,
+            self.cmd_vel.cpu().numpy(),  # Convert cmd_vel to NumPy
+            np.hstack((local_pose_diff_np[:2], np.array([veh_yaw - ref_yaw]))),  # Ensure NumPy compatibility
+        ])
         return obs
+
 
     def render(self):
         """
@@ -290,11 +312,11 @@ class MATH_USV_V1(gym.Env):
 
         # Forces in local frame
         force_left_local = torch.tensor([
-            mag_left * torch.sqrt(1 - torch.pow(angle_left, 2)), 
+            mag_left * torch.sqrt(1 - torch.pow(angle_left, 2)),
             mag_left * angle_left
         ], device=self.device)
         force_right_local = torch.tensor([
-            mag_right * torch.sqrt(1 - torch.pow(angle_right, 2)), 
+            mag_right * torch.sqrt(1 - torch.pow(angle_right, 2)),
             mag_right * angle_right
         ], device=self.device)
 
@@ -329,9 +351,8 @@ class MATH_USV_V1(gym.Env):
         theta_new = theta + omega_new * dt
         theta_new = (theta_new + np.pi) % (2 * np.pi) - np.pi  # Wrap angle between [-pi, pi]
 
-        # IMU data: x, y, z, w, ax, ay, az, wx, wy, wz
-        # theta_new is yaw and make imu_data[:4] to be orientation of it
-        orientation = R.from_euler('xyz', [0, 0, theta_new]).as_quat()
+        # IMU data: [qx, qy, qz, qw, ax, ay, az, wx, wy, wz]
+        orientation = R.from_euler('xyz', [0, 0, theta_new.cpu().item()]).as_quat()
         imu_data = torch.tensor([orientation[0], orientation[1], orientation[2], orientation[3], ax, ay, -9.8, 0, 0, omega_new], dtype=torch.float32, device=self.device)
         return torch.tensor([x_new, y_new, theta_new, vx_new, vy_new, omega_new], dtype=torch.float32, device=self.device), imu_data
 
@@ -339,7 +360,7 @@ class MATH_USV_V1(gym.Env):
         """
         Calculates the initial IMU data from the initial state.
         """
-        orientation = R.from_euler('xyz', [0, 0, self.state[2]]).as_quat()
+        orientation = R.from_euler('xyz', [0, 0, self.state[2].cpu().item()]).as_quat()
         return torch.tensor([orientation[0], orientation[1], orientation[2], orientation[3], 0.0, 0.0, -9.8, 0.0, 0.0, 0.0], dtype=torch.float32, device=self.device)
 
     def _check_bounds(self):
@@ -391,7 +412,7 @@ class MATH_USV_V1(gym.Env):
         rotated_corners = (corners @ rotation.T) + torch.tensor([x, y], device=self.device)
 
         # Convert to tuple for Pygame
-        points = rotated_corners.tolist()
+        points = rotated_corners.cpu().numpy().tolist()
         pygame.draw.polygon(self.screen, (0, 0, 255), points)
 
 
@@ -406,56 +427,36 @@ def relative_pose_tf(pose1, pose2, device='cpu'):
     Returns:
     - local_pose_diff: Tensor of shape (2,) representing the position difference in the local frame.
     """
-    # Ensure pose1 and pose2 are tensors
-    if not isinstance(pose1, torch.Tensor):
-        pose1 = torch.tensor(pose1, dtype=torch.float32, device=device)
-    if not isinstance(pose2, torch.Tensor):
-        pose2 = torch.tensor(pose2, dtype=torch.float32, device=device)
+    # Ensure pose1 and pose2 are tensors of type float32
+    pose1 = torch.as_tensor(pose1, dtype=torch.float32, device=device)
+    pose2 = torch.as_tensor(pose2, dtype=torch.float32, device=device)
 
     # Extract position and quaternion
     dx, dy = pose1[:2] - pose2[:2]
 
     # Convert quaternion to yaw
     qx, qy, qz, qw = pose2[3], pose2[4], pose2[5], pose2[6]
-    siny_cosp = 2 * (qw * qz + qx * qy)
-    cosy_cosp = 1 - 2 * (qy * qy + qz * qz)
+    siny_cosp = 2.0 * (qw * qz + qx * qy)
+    cosy_cosp = 1.0 - 2.0 * (qy * qy + qz * qz)
 
-    # Ensure arguments to atan2 are tensors
-    siny_cosp = torch.tensor(siny_cosp, dtype=torch.float32, device=device)
-    cosy_cosp = torch.tensor(cosy_cosp, dtype=torch.float32, device=device)
+    # Ensure siny_cosp and cosy_cosp are float32
+    siny_cosp = siny_cosp.to(dtype=torch.float32)
+    cosy_cosp = cosy_cosp.to(dtype=torch.float32)
 
     yaw = torch.atan2(siny_cosp, cosy_cosp)  # Extract yaw from quaternion
 
     # Rotation matrix for the inverse rotation (local frame transformation)
     cos_yaw = torch.cos(-yaw)
     sin_yaw = torch.sin(-yaw)
-    rotation_matrix = torch.tensor([
-        [cos_yaw, -sin_yaw],
-        [sin_yaw, cos_yaw]
-    ], dtype=torch.float32, device=device)
+
+    rotation_matrix = torch.stack([
+        torch.stack([cos_yaw, -sin_yaw]),
+        torch.stack([sin_yaw, cos_yaw])
+    ])
+
+    # Ensure rotation_matrix is float32
+    rotation_matrix = rotation_matrix.to(dtype=torch.float32)
 
     # Transform dx, dy into the local frame
-    local_pose_diff = torch.matmul(rotation_matrix, torch.tensor([dx, dy], dtype=torch.float32, device=device))
-
+    local_pose_diff = torch.matmul(rotation_matrix, torch.stack([dx, dy]))
     return local_pose_diff
-
-
-
-
-# Testing the Environment
-# if __name__ == "__main__":
-#     env = MATH_USV_V1(render_mode="human")
-
-#     obs, _ = env.reset()
-#     print("Initial Observation:", obs)
-
-#     for _ in range(200):
-#         action = env.action_space.sample()  # Random action
-#         obs, reward, done, _, _ = env.step(action)
-#         print(f"Action: {action}, Observation: {obs}, Reward: {reward}, Done: {done}")
-
-#         if done:
-#             print("USV out of bounds. Resetting environment...")
-#             env.reset()
-
-#     env.close()

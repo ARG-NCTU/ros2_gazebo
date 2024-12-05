@@ -40,7 +40,7 @@ learning_rate_schedule = linear_schedule(initial_learning_rate)
 
 warnings.filterwarnings("ignore")
 
-n_envs = 5000
+n_envs = 10
 
 vec_env = make_vec_env(make_env(render_mode="none"), n_envs=n_envs)
 
