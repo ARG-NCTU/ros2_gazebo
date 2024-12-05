@@ -284,7 +284,7 @@ class MATH_USV_V1(gym.Env):
             imu_obs,
             action_obs,
             self.cmd_vel.cpu().numpy(),  # Convert cmd_vel to NumPy
-            np.hstack((local_pose_diff_np[:2], np.array([veh_yaw - ref_yaw]))),  # Ensure NumPy compatibility
+            np.hstack((local_pose_diff_np[:2], np.array([veh_yaw - ref_yaw.cpu().item()]))),  # Ensure NumPy compatibility
         ])
         return obs
 
@@ -488,7 +488,7 @@ class MATH_USV_V1(gym.Env):
 
 
 if __name__ == "__main__":
-    env = MATH_USV_V1(render_mode="human")
+    env = MATH_USV_V1(render_mode="human", device='cuda')
     obs = env.reset()
     done = False
     while not done:
