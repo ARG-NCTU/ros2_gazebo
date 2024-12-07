@@ -342,23 +342,26 @@ class MMIPO(PPO):
 
         super(MMIPO, self).__init__(*args, policy=MMIPOActorCriticPolicy, **kwargs)
         # Set default thresholds if not provided
+        
         if constraint_thresholds is None:
             constraint_thresholds = np.array([0.1] * self.num_constraints)
         self.initial_constraint_thresholds = constraint_thresholds  # d_k
         self.dynamic_constraint_thresholds = np.copy(constraint_thresholds)  # d_k^i
         # Override the rollout buffer with the custom one
-        self.rollout_buffer = ConstrainedRolloutBuffer(
-            self.n_steps,
-            self.observation_space,
-            self.action_space,
-            device=self.device,
-            gae_lambda=self.gae_lambda,
-            gamma=self.gamma,
-            n_envs=self.n_envs,
-            num_constraints=self.num_constraints,
-        )
+        # self._setup_model()
+        # self.rollout_buffer = ConstrainedRolloutBuffer(
+        #     self.n_steps,
+        #     self.observation_space,
+        #     self.action_space,
+        #     device=self.device,
+        #     gae_lambda=self.gae_lambda,
+        #     gamma=self.gamma,
+        #     n_envs=self.n_envs,
+        #     num_constraints=self.num_constraints,
+        # )
+
         # Ensure policy is our custom policy
-        assert isinstance(self.policy, MMIPOActorCriticPolicy), "Policy must be MIPOActorCriticPolicy"
+        # assert isinstance(self.policy, MMIPOActorCriticPolicy), "Policy must be MIPOActorCriticPolicy"
 
     def collect_rollouts(self, env: VecEnv, callback, rollout_buffer, n_rollout_steps):
         self.policy.set_training_mode(False)
@@ -420,6 +423,20 @@ class MMIPO(PPO):
         callback.on_rollout_end()
         return True
 
+    def _setup_model(self):
+        super()._setup_model()
+        # Now env, observation_space, action_space are defined
+        self.rollout_buffer = ConstrainedRolloutBuffer(
+            self.n_steps,
+            self.observation_space,
+            self.action_space,
+            device=self.device,
+            gae_lambda=self.gae_lambda,
+            gamma=self.gamma,
+            n_envs=self.n_envs,
+            num_constraints=self.num_constraints,
+        )
+        assert isinstance(self.policy, MMIPOActorCriticPolicy), "Policy must be MMIPOActorCriticPolicy" 
 
     def train(self) -> None:
         # Update optimizer learning rate

@@ -55,7 +55,8 @@ class MATH_USV_V1(gym.Env):
             'action': (hist_frame, 4),
             'latent': self.info['latent_dim'],
             'cmd_vel': (3,),
-            'refer': (3,),
+            # 'refer': (3,),
+            'refer': (1,),
         }
 
         # Initialize cmd_vel and refer_pose as tensors
@@ -158,9 +159,13 @@ class MATH_USV_V1(gym.Env):
         ref_yaw = self.refer_pose[2]
         refer_ori = self.quat_from_angle_z(ref_yaw)
         refer_ori_tensor = torch.tensor(refer_ori, device=self.device, dtype=torch.float32)
+        # refer_pose = torch.cat([
+        #     self.refer_pose[:2],
+        #     torch.tensor([0.0], device=self.device),
+        #     refer_ori_tensor
+        # ])
         refer_pose = torch.cat([
-            self.refer_pose[:2],
-            torch.tensor([0.0], device=self.device),
+            self.veh_obs['pose'][1][:3],
             refer_ori_tensor
         ])
 
@@ -284,7 +289,8 @@ class MATH_USV_V1(gym.Env):
             imu_obs,
             action_obs,
             self.cmd_vel.cpu().numpy(),  # Convert cmd_vel to NumPy
-            np.hstack((local_pose_diff_np[:2], np.array([veh_yaw - ref_yaw.cpu().item()]))),  # Ensure NumPy compatibility
+            # np.hstack((local_pose_diff_np[:2], np.array([veh_yaw - ref_yaw.cpu().item()]))),  # Ensure NumPy compatibility
+            np.array([veh_yaw - ref_yaw.cpu().item()]),  # Ensure NumPy compatibility
         ])
         return obs
 
