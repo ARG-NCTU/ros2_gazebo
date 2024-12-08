@@ -180,11 +180,15 @@ class MATH_USV_V1(gym.Env):
         if cmd_vel_norm == 0:
             rew1 = k1*(1 - relu(local_pose_norm))
         else:
-            theta = torch.cos(veh_dir - cmd_dir)
-            rew1 = k1 * theta - relu(-operator(theta) * local_pose_norm)
+            if local_pose_norm <= 1e-2:
+                rew1 = k1 * (local_pose_norm - local_pose_norm)
+            else:
+                rew1 = k1 * torch.cos(veh_dir - cmd_dir)
+                theta = torch.cos(veh_dir - cmd_dir)
+                rew1 = k1 * theta - relu(-operator(theta) * local_pose_norm)
         # Reward of thrust
         action_tensor = torch.tensor(self.action[:2], device=self.device, dtype=torch.float32)
-        rew2 = 1 - 2 * (torch.abs(action_tensor) - cmd_vel_norm)
+        rew2 = 1 - 2 * torch.abs((torch.abs(action_tensor) - cmd_vel_norm))
         rew2 = k2 * torch.sum(rew2) / 2
 
         # Reward of smooth action
