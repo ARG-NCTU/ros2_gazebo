@@ -147,9 +147,9 @@ class MATH_USV_V1(gym.Env):
         obs = self.get_observation()
 
         ## reward and constraints ##
-        k1 = 60
-        k2 = 30
-        k3 = 10
+        k1 = 50 # Reward weight for following cmd_vel direction
+        k2 = 50 # Reward weight for maintaining heading
+        k3 = 10 # Reward weight for smooth action
 
         # Replace operator and relu with tensor-compatible functions
         operator = lambda x: torch.where(x >= 0, torch.tensor(1.0, device=self.device), torch.tensor(-1.0, device=self.device))
@@ -186,21 +186,34 @@ class MATH_USV_V1(gym.Env):
                 rew1 = k1 * torch.cos(veh_dir - cmd_dir)
                 theta = torch.cos(veh_dir - cmd_dir)
                 rew1 = k1 * theta - relu(-operator(theta) * local_pose_norm)
-        # Reward of thrust
-        action_tensor = torch.tensor(self.action[:2], device=self.device, dtype=torch.float32)
-        rew2 = 1 - 2 * torch.abs((torch.abs(action_tensor) - cmd_vel_norm))
-        rew2 = k2 * torch.sum(rew2) / 2
 
+        # Reward of thrust
+        # action_tensor = torch.tensor(self.action[:2], device=self.device, dtype=torch.float32)
+        # rew2 = 1 - 2 * torch.abs((torch.abs(action_tensor) - cmd_vel_norm))
+        # rew2 = k2 * torch.sum(rew2) / 2
+
+        # Reward of maintaining heading
+        veh_quat = self.veh_obs['pose'][0][3:7]
+        ref_yaw = self.refer_pose[2]
+        rew2 = k2*torch.cos(self.yaw_from_quaternion(veh_quat- ref_yaw))
         # Reward of smooth action
         rew3 = -k3 * torch.norm(self.veh_obs['action'][0] - self.veh_obs['action'][1], p=1) / self.__action_shape[0]
 
         # Constraint
         const = []
-        veh_quat = self.veh_obs['pose'][0][3:7].cpu().numpy()
-        veh_yaw = R.from_quat(veh_quat).as_euler('xyz', degrees=False)[2]
-        ref_yaw = self.refer_pose[2].cpu().item()
-        const_value = (1 - np.cos(veh_yaw - ref_yaw)) / 2
-        const.append(const_value)
+        # Constraint of heading
+        # veh_quat = self.veh_obs['pose'][0][3:7].cpu().numpy()
+        # veh_yaw = R.from_quat(veh_quat).as_euler('xyz', degrees=False)[2]
+        # ref_yaw = self.refer_pose[2].cpu().item()
+        # const_value = (1 - np.cos(veh_yaw - ref_yaw)) / 2
+        # const.append(const_value)
+
+        # Constraint of thrust
+        action_tensor = torch.tensor(self.action[:2], device=self.device, dtype=torch.float32)
+        cons1 = torch.sum(torch.abs((torch.abs(action_tensor) - cmd_vel_norm)))/2
+
+        const.append(cons1.item())
+
         # Normalize rewards
         rew1 = rew1 / self.info['max_rew']
         rew2 = rew2 / self.info['max_rew']

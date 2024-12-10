@@ -40,7 +40,7 @@ learning_rate_schedule = linear_schedule(initial_learning_rate)
 
 warnings.filterwarnings("ignore")
 
-n_envs = 10
+n_envs = 25
 
 vec_env = make_vec_env(make_env(render_mode="none"), n_envs=n_envs)
 
@@ -69,8 +69,8 @@ model = MMIPO(
     batch_size=128,
     n_steps=4096,
     num_constraints=1,  # Pass the number of constraints to the policy
-    constraint_thresholds=np.array([0.3]),  # Initial thresholds d_k
-    barrier_coefficient=1000.0,                      # Hyperparameter t
+    constraint_thresholds=np.array([0.5]),  # Initial thresholds d_k
+    barrier_coefficient=100.0,                      # Hyperparameter t
     alpha=0.02,                                   # Hyperparameter α
     n_epochs=10,
     ent_coef=0.01,
