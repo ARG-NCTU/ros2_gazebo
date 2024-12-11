@@ -481,7 +481,7 @@ class MIPO(PPO):
             _, values, cost_values, _ = self.policy.forward(obs_tensor)
             # Get last cost values
             # cost_values = self.policy.get_cost_values(obs_tensor)
-            cost_values = th.cat(cost_values, dim=1)
+            # cost_values = th.cat(cost_values, dim=1)
 
         rollout_buffer.compute_returns_and_advantage(values, dones)
         callback.on_rollout_end()
@@ -544,10 +544,9 @@ class MIPO(PPO):
                     actions = actions.long().flatten()
 
                 # Evaluate actions
-                values, cost_value_preds, log_prob, entropy = self.policy.evaluate_actions(rollout_data.observations, actions)
-                # Get cost value predictions
-                # cost_value_preds = self.policy.get_cost_values(rollout_data.observations)
-                cost_values = th.cat(cost_value_preds, dim=1)  # Shape: [batch_size, num_constraints]
+                values, cost_value, log_prob, entropy = self.policy.evaluate_actions(rollout_data.observations, actions)
+                cost_values = cost_value
+
 
                 values = values.flatten()
                 advantages = rollout_data.advantages
