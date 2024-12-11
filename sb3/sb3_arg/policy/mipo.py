@@ -299,8 +299,8 @@ class ConstrainedRolloutBuffer(RolloutBuffer):
         **kwargs,
     ):
         super().add(*args, **kwargs)
-        self.cost_rewards[self.pos] = cost_rewards.copy()
-        self.cost_values[self.pos] = cost_values.clone().cpu().numpy()
+        self.cost_rewards[self.pos-1] = cost_rewards.copy()
+        self.cost_values[self.pos-1] = cost_values.clone().cpu().numpy()
 
     def compute_returns_and_advantage(self, last_values, dones):
         super().compute_returns_and_advantage(last_values, dones)

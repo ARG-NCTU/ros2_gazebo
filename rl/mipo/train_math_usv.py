@@ -78,6 +78,6 @@ model = MIPO(
     device='cuda',
     tensorboard_log='tb_mmipo')
 
-model.learn(total_timesteps=20_000_000, tb_log_name='tb_mmipo', callback=checkpoint_callback)
+model.learn(total_timesteps=200_000_000, tb_log_name='tb_mmipo', callback=checkpoint_callback)
 model.save("mmipo_wamv_v3")
 vec_env.close()
