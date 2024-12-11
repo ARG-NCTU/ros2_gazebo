@@ -159,15 +159,16 @@ class MATH_USV_V1(gym.Env):
         ref_yaw = self.refer_pose[2]
         refer_ori = self.quat_from_angle_z(ref_yaw)
         refer_ori_tensor = torch.tensor(refer_ori, device=self.device, dtype=torch.float32)
-        # refer_pose = torch.cat([
-        #     self.refer_pose[:2],
-        #     torch.tensor([0.0], device=self.device),
-        #     refer_ori_tensor
-        # ])
         refer_pose = torch.cat([
-            self.veh_obs['pose'][1][:3],
+            self.refer_pose[:2],
+            torch.tensor([0.0], device=self.device),
             refer_ori_tensor
         ])
+        if self.cmd_vel[0] != 0 and self.cmd_vel[1] != 0:
+            refer_pose = torch.cat([
+                self.veh_obs['pose'][1][:3],
+                refer_ori_tensor
+            ])
 
         local_pose_diff = self.relative_pose_tf(self.veh_obs['pose'][0], refer_pose)
         local_pose_norm = torch.norm(local_pose_diff[:2], p=2)
