@@ -40,7 +40,7 @@ learning_rate_schedule = linear_schedule(initial_learning_rate)
 
 warnings.filterwarnings("ignore")
 
-n_envs = 25
+n_envs = 10
 
 vec_env = make_vec_env(make_env(render_mode="none"), n_envs=n_envs)
 
@@ -56,7 +56,7 @@ today = date.today()
 checkpoint_callback = CheckpointCallback(
   save_freq=100000,
   save_path="./logs/",
-  name_prefix="dp_"+str(today),
+  name_prefix="uwe_"+str(today),
   save_replay_buffer=True,
   save_vecnormalize=True,
 )
@@ -77,6 +77,6 @@ model = MMIPO(
     device='cuda',
     tensorboard_log='tb_mmipo')
 
-model.learn(total_timesteps=20_000_000, tb_log_name='tb_mmipo', callback=checkpoint_callback)
+model.learn(total_timesteps=200_000_000, tb_log_name='tb_mmipo', callback=checkpoint_callback)
 model.save("mmipo_wamv_v3")
 vec_env.close()
