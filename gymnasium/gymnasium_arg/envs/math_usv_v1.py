@@ -51,12 +51,12 @@ class MATH_USV_V1(gym.Env):
 
         self.__action_shape = (4,)
         self.__obs_shape = {
-            'imu': (hist_frame, 10),
+            'imu': (hist_frame, 9),
             'action': (hist_frame, 4),
             'latent': self.info['latent_dim'],
-            'cmd_vel': (3,),
+            'cmd_vel': (2,),
             # 'refer': (3,),
-            'refer': (1,),
+            'refer': (0,),
         }
 
         # Initialize cmd_vel and refer_pose as tensors
@@ -159,17 +159,20 @@ class MATH_USV_V1(gym.Env):
         ref_yaw = self.refer_pose[2]
         refer_ori = self.quat_from_angle_z(ref_yaw)
         refer_ori_tensor = torch.tensor(refer_ori, device=self.device, dtype=torch.float32)
+        # refer_pose = torch.cat([
+        #     self.refer_pose[:2],
+        #     torch.tensor([0.0], device=self.device),
+        #     refer_ori_tensor
+        # ])
+        # if self.cmd_vel[0] != 0 and self.cmd_vel[1] != 0:
+        #     refer_pose = torch.cat([
+        #         self.veh_obs['pose'][1][:3],
+        #         refer_ori_tensor
+        #     ])
         refer_pose = torch.cat([
-            self.refer_pose[:2],
-            torch.tensor([0.0], device=self.device),
+            self.veh_obs['pose'][1][:3],
             refer_ori_tensor
         ])
-        if self.cmd_vel[0] != 0 and self.cmd_vel[1] != 0:
-            refer_pose = torch.cat([
-                self.veh_obs['pose'][1][:3],
-                refer_ori_tensor
-            ])
-
         local_pose_diff = self.relative_pose_tf(self.veh_obs['pose'][0], refer_pose)
         local_pose_norm = torch.norm(local_pose_diff[:2], p=2)
         cmd_dir = torch.atan2(self.cmd_vel[1], self.cmd_vel[0])
@@ -253,10 +256,11 @@ class MATH_USV_V1(gym.Env):
             x = random.uniform(-1, 1)
             y = np.sqrt(1 - x ** 2) * random.uniform(-1, 1)
             self.cmd_vel = torch.tensor([x, y, 0.0], device=self.device, dtype=torch.float32)
-            yaw_quat = self.veh_obs['pose'][0][3:7].cpu().numpy()
-            yaw = R.from_quat(yaw_quat).as_euler('xyz', degrees=False)[2]
-            self.refer_pose = torch.cat([self.veh_obs['pose'][0][:2], torch.tensor([yaw], device=self.device, dtype=torch.float32)])
-
+            yaw = self.yaw_from_quaternion(self.veh_obs['pose'][0][3:7])
+            # yaw_quat = self.veh_obs['pose'][0][3:7].cpu().numpy()
+            # yaw = R.from_quat(yaw_quat).as_euler('xyz', degrees=False)[2]
+            # self.refer_pose = torch.cat([self.veh_obs['pose'][0][:2], torch.tensor([yaw], device=self.device, dtype=torch.float32)])
+            self.refer_pose = torch.tensor([self.state[0], self.state[1], yaw], device=self.device)
         info['constraint_costs'] = np.array(const, dtype=np.float32)
 
         if self.info['step_cnt'] >= self.info['maxstep']:
@@ -278,37 +282,43 @@ class MATH_USV_V1(gym.Env):
         veh_pose = np.hstack((veh_pose, 0))
         veh_pose = np.hstack((veh_pose, self.imu_data.cpu().numpy()[:4]))  # Convert IMU data as well
 
-        imu_obs = self.veh_obs['imu'].cpu().numpy().flatten()  # Convert to NumPy
+        imu_obs = self.veh_obs['imu'].cpu().numpy()   # Convert to NumPy
+        r, p, y = R.from_quat(imu_obs[:, :4]).as_euler('xyz', degrees=False).T
+        # print(np.array([r]))
+        # print(np.array([p]))
+        # print(np.array([y-self.refer_pose[2].item()]).shape)
+        imu_obs = np.hstack((np.array([r]).T, np.array([p]).T, np.array([y-self.refer_pose[2].item()]).T, imu_obs[:, 4:])) 
+        imu_obs = imu_obs.flatten()
         action_obs = self.veh_obs['action'].cpu().numpy().flatten()  # Convert to NumPy
 
-        ref_yaw = self.refer_pose[2]
-        refer_ori = self.quat_from_angle_z(self.refer_pose[2])
+        # ref_yaw = self.refer_pose[2]
+        # refer_ori = self.quat_from_angle_z(self.refer_pose[2])
 
         # Construct refer_pose as a tensor
-        refer_pose = torch.cat([
-            self.refer_pose[:2],
-            torch.tensor([0.0], device=self.device, dtype=torch.float32),
-            refer_ori
-        ])
+        # refer_pose = torch.cat([
+        #     self.refer_pose[:2],
+        #     torch.tensor([0.0], device=self.device, dtype=torch.float32),
+        #     refer_ori
+        # ])
 
         # Compute local pose difference
-        local_pose_diff = self.relative_pose_tf(self.veh_obs['pose'][0], refer_pose)
-        local_pose_diff_np = local_pose_diff.cpu().numpy()  # Convert to NumPy for concatenation
+        # local_pose_diff = self.relative_pose_tf(self.veh_obs['pose'][0], refer_pose)
+        # local_pose_diff_np = local_pose_diff.cpu().numpy()  # Convert to NumPy for concatenation
 
-        veh_yaw = R.from_quat([
-            veh_pose[3],
-            veh_pose[4],
-            veh_pose[5],
-            veh_pose[6]
-        ]).as_euler('xyz', degrees=False)[2]
+        # veh_yaw = R.from_quat([
+        #     veh_pose[3],
+        #     veh_pose[4],
+        #     veh_pose[5],
+        #     veh_pose[6]
+        # ]).as_euler('xyz', degrees=False)[2]
 
         # Convert all parts to NumPy-compatible formats before concatenation
         obs = np.concatenate([
             imu_obs,
             action_obs,
-            self.cmd_vel.cpu().numpy(),  # Convert cmd_vel to NumPy
+            self.cmd_vel.cpu().numpy()[:2],  # Convert cmd_vel to NumPy
             # np.hstack((local_pose_diff_np[:2], np.array([veh_yaw - ref_yaw.cpu().item()]))),  # Ensure NumPy compatibility
-            np.array([veh_yaw - ref_yaw.cpu().item()]),  # Ensure NumPy compatibility
+            # np.array([veh_yaw - ref_yaw.cpu().item()]),  # Ensure NumPy compatibility
         ])
         return obs
 

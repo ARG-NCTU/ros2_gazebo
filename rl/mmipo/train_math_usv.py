@@ -49,7 +49,7 @@ policy_kwargs = dict(
     net_arch=[dict(pi=[128, 128, 64], vf=[128, 128, 64])],
     features_extractor_class=USVFeatureExtractor,
     # features_extractor_kwargs=dict(hist_frame=50, imu_size=10, action_size=4, cmd_size=3, refer_size=3, latent_dim=6+128),
-    features_extractor_kwargs=dict(hist_frame=50, imu_size=10, action_size=4, cmd_size=3, refer_size=1, latent_dim=6+128),
+    features_extractor_kwargs=dict(hist_frame=50, imu_size=9, action_size=4, cmd_size=2, refer_size=0, latent_dim=6+128),
 )
 
 today = date.today()
