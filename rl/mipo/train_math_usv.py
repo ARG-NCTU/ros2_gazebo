@@ -2,7 +2,7 @@ import sys, os, time, torch
 import threading
 import gymnasium as gym
 import warnings
-from sb3_arg.policy.mmipo import MMIPO
+from sb3_arg.policy.mipo import MIPO
 from sb3_arg.FeatureExtractor import USVFeatureExtractor, USVGRUExtractor, USVCNNExtractor
 from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv, SubprocVecEnv
 from stable_baselines3.common.callbacks import CheckpointCallback
@@ -61,7 +61,7 @@ checkpoint_callback = CheckpointCallback(
   save_vecnormalize=True,
 )
 
-model = MMIPO(
+model = MIPO(
     env=vec_env,
     verbose=1, 
     policy_kwargs=policy_kwargs, 
@@ -75,8 +75,8 @@ model = MMIPO(
     n_epochs=10,
     ent_coef=0.01,
     device='cuda',
-    tensorboard_log='tb_mmipo')
+    tensorboard_log='tb_mipo')
 
-model.learn(total_timesteps=200_000_000, tb_log_name='tb_mmipo', callback=checkpoint_callback)
-model.save("mmipo_wamv_v3")
+model.learn(total_timesteps=200_000_000, tb_log_name='tb_mipo', callback=checkpoint_callback)
+model.save("mipo_wamv_v3")
 vec_env.close()

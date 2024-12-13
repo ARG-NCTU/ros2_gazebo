@@ -10,7 +10,7 @@ if __name__ == "__main__":
     env = gym.make("gymnasium_arg:mathusv-v1", render_mode="human", device='cuda')
     obs, info = env.reset()
     terminated = truncation = False
-    model = MMIPO.load("dp_2024-12-06_63000000_steps")
+    model = MMIPO.load("uwe_2024-12-10_7500000_steps")
     while True:
         action, _states = model.predict(obs)
         obs, rew, terminated, truncation, info = env.step(action)
