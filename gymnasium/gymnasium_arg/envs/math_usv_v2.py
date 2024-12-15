@@ -95,7 +95,7 @@ class MATH_USV_V2(gym.Env):
         self.dp_cnt = 0
         # Reset state: [x, y, theta, vx, vy, omega]
         d_pose = torch.rand(3, device=self.device)*2-1
-        d_pose[:2] = d_pose[:2] * 1
+        d_pose[1] = torch.sqrt(1-d_pose[0]**2)
         d_pose[2] = d_pose[2] * np.pi
         self.state = torch.tensor(
             [self.world_size[0]/2, self.world_size[1]/2, 0.0, 0.0, 0.0, 0.0], dtype=torch.float32, device=self.device
@@ -159,7 +159,7 @@ class MATH_USV_V2(gym.Env):
         k3 = 10 # Reward weight for smooth action
 
         # Reward of navigating to center
-        rew1 = k1*(2*torch.exp(-(self.cmd_vel[0]**2/0.25 + self.cmd_vel[1]**2/0.25))-1)
+        rew1 = k1*torch.exp(-(self.cmd_vel[0]**2/0.25 + self.cmd_vel[1]**2/0.25))
 
         # Reward of maintaining heading
         veh_quat = self.veh_obs['pose'][0][3:7]
@@ -207,7 +207,7 @@ class MATH_USV_V2(gym.Env):
         sys.stdout.write(output)
         sys.stdout.flush()
         # Update for termination
-        if rew <= -1:
+        if rew <= -0.55:
             termination = True
         if rew >=0.95:
             if self.dp_cnt >= 100:
