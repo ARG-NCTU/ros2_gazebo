@@ -42,3 +42,9 @@ register(
     entry_point="gymnasium_arg.envs:MATH_USV_V1",
     max_episode_steps=4096,
 )
+
+register(
+    id="mathusv-v2",
+    entry_point="gymnasium_arg.envs:MATH_USV_V2",
+    max_episode_steps=4096,
+)
