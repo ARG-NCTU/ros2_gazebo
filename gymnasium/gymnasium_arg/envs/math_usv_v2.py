@@ -95,7 +95,7 @@ class MATH_USV_V2(gym.Env):
         self.dp_cnt = 0
         # Reset state: [x, y, theta, vx, vy, omega]
         d_pose = torch.rand(3, device=self.device)*2-1
-        d_pose[:2] = d_pose[:2] * 80
+        d_pose[:2] = d_pose[:2] * 1
         d_pose[2] = d_pose[2] * np.pi
         self.state = torch.tensor(
             [self.world_size[0]/2, self.world_size[1]/2, 0.0, 0.0, 0.0, 0.0], dtype=torch.float32, device=self.device
