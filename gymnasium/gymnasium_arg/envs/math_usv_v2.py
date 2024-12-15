@@ -247,12 +247,13 @@ class MATH_USV_V2(gym.Env):
         imu_obs = imu_obs.flatten()
         action_obs = self.veh_obs['action'].cpu().numpy().flatten()  # Convert to NumPy
 
-        goal_diff = self.refer_pose[:2]-self.state[:2]
+
+        goal_pose = torch.concat([self.refer_pose[:2], torch.tensor([0.0], device=self.device), self.quat_from_angle_z(self.refer_pose[2])], dim=0)
+        goal_diff = self.relative_pose_tf(goal_pose, self.veh_obs['pose'][0])
         ang_goal_diff = torch.atan2(goal_diff[1], goal_diff[0])
         norm_goal_diff = torch.norm(goal_diff, p=2)
         self.cmd_vel = torch.tensor([torch.cos(ang_goal_diff), torch.sin(ang_goal_diff)], device=self.device, dtype=torch.float32)
         self.cmd_vel = self.cmd_vel*norm_goal_diff if norm_goal_diff < 1 else self.cmd_vel
-        
         # ref_yaw = self.refer_pose[2]
         # refer_ori = self.quat_from_angle_z(self.refer_pose[2])
 
@@ -484,7 +485,7 @@ class MATH_USV_V2(gym.Env):
 
 
 if __name__ == "__main__":
-    env = MATH_USV_V1(render_mode="human", device='cuda')
+    env = MATH_USV_V2(render_mode="human", device='cuda')
     obs = env.reset()
     done = False
     while not done:
