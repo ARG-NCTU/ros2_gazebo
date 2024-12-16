@@ -65,8 +65,16 @@ class MATH_USV_V2(gym.Env):
 
         self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=self.__action_shape, dtype=np.float32, seed=seed)
         self.observation_space = gym.spaces.Box(
-            low=-np.inf,
-            high=np.inf,
+            low=np.hstack((
+                    np.full((np.prod(self.__obs_shape['imu']), ), -np.inf), 
+                    np.full((np.prod(self.__obs_shape['action']), ), -1.0), 
+                    np.full((np.prod(self.__obs_shape['cmd_vel']), ), -1.0)
+                    )),
+            high=np.hstack((
+                    np.full((np.prod(self.__obs_shape['imu']), ), np.inf), 
+                    np.full((np.prod(self.__obs_shape['action']), ), 1.0), 
+                    np.full((np.prod(self.__obs_shape['cmd_vel']), ), 1.0)
+                    )),
             shape=(np.prod(self.__obs_shape['imu']) + np.prod(self.__obs_shape['action']) + np.prod(self.__obs_shape['cmd_vel']) + np.prod(self.__obs_shape['refer']),),
             dtype=np.float32,
             seed=seed
@@ -97,6 +105,7 @@ class MATH_USV_V2(gym.Env):
         d_pose = torch.rand(3, device=self.device)*2-1
         d_pose[1] = torch.sqrt(1-d_pose[0]**2)
         d_pose[2] = d_pose[2] * np.pi
+        d_pose[:2] = d_pose[:2] * 0.5
         self.state = torch.tensor(
             [self.world_size[0]/2, self.world_size[1]/2, 0.0, 0.0, 0.0, 0.0], dtype=torch.float32, device=self.device
         )  # Start in the center
@@ -159,7 +168,8 @@ class MATH_USV_V2(gym.Env):
         k3 = 10 # Reward weight for smooth action
 
         # Reward of navigating to center
-        rew1 = k1*torch.exp(-(self.cmd_vel[0]**2/0.25 + self.cmd_vel[1]**2/0.25))
+        # rew1 = k1*torch.exp(-(torch.norm(self.refer_pose[:2]-self.veh_obs['pose'][0][:2], p=2)**2/0.25))
+        rew1 = k1*(1-(torch.norm(self.refer_pose[:2]-self.veh_obs['pose'][0][:2], p=2)))
 
         # Reward of maintaining heading
         veh_quat = self.veh_obs['pose'][0][3:7]
@@ -207,13 +217,7 @@ class MATH_USV_V2(gym.Env):
         sys.stdout.write(output)
         sys.stdout.flush()
         # Update for termination
-        if rew <= -0.55:
-            termination = True
-        if rew >=0.95:
-            if self.dp_cnt >= 100:
-                termination = True
-            else:
-                self.dp_cnt += 1
+        
         info['constraint_costs'] = np.array(const, dtype=np.float32)
 
         if self.info['step_cnt'] >= self.info['maxstep']:
@@ -221,6 +225,14 @@ class MATH_USV_V2(gym.Env):
 
         if self.render_mode == "human":
             self._render_pygame()
+
+        if rew <= -0.65:
+            termination = True
+        if rew >=0.95:
+            if self.dp_cnt >= 100:
+                termination = True
+            else:
+                self.dp_cnt += 1
 
         # Return values
         return obs, rew, termination, truncation, info
