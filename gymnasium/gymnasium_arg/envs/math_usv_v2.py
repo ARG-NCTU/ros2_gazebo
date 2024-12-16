@@ -226,13 +226,16 @@ class MATH_USV_V2(gym.Env):
         if self.render_mode == "human":
             self._render_pygame()
 
-        if rew <= -0.65:
+        if rew1.item() <= -0.5:
             termination = True
+
         if rew >=0.95:
             if self.dp_cnt >= 100:
                 termination = True
             else:
                 self.dp_cnt += 1
+        else:
+            self.dp_cnt = 0
 
         # Return values
         return obs, rew, termination, truncation, info
