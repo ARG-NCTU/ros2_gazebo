@@ -1,3 +1,3 @@
 cd ros2_ws
-colcon build
+colcon build --symlink-install
 cd ..
