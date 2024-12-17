@@ -1,6 +1,6 @@
 import gymnasium as gym
 import warnings
-from sb3_arg.policy.mmipo import MMIPO
+from sb3_arg.policy.mipo import MIPO
 from sb3_arg.FeatureExtractor import USVFeatureExtractor, USVGRUExtractor, USVCNNExtractor
 from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv, SubprocVecEnv
 from stable_baselines3.common.callbacks import CheckpointCallback
@@ -45,28 +45,28 @@ today = date.today()
 checkpoint_callback = CheckpointCallback(
     save_freq=100000,
     save_path="./logs/",
-    name_prefix="mmipo_finetuned_gz_wamv3_"+str(today),
+    name_prefix="mipo_finetuned_gz_wamv3_"+str(today),
     save_replay_buffer=True,
     save_vecnormalize=True,
 )
 
 # Load the pre-trained model and attach the environment
-model = MMIPO.load("mmipo_wamv_v3", env=env)
+model = MIPO.load("mipo_wamv_v3", env=env)
 
 # Update parameters for fine-tuning (if necessary)
 model.learning_rate = learning_rate_schedule
 model.n_epochs = 5  # Adjust epochs if needed
 model.batch_size = 128
-model.tensorboard_log = 'tb_mmipo_fine_tuned'
+model.tensorboard_log = 'tb_mipo_fine_tuned'
 
 # Fine-tune the model
 fine_tune_timesteps = 100_000_000  # Adjust as needed
 model.learn(
     total_timesteps=fine_tune_timesteps, 
-    tb_log_name='tb_mmipo_fine_tuned', 
+    tb_log_name='tb_mipo_fine_tuned', 
     callback=checkpoint_callback
     )
 
 # Save the fine-tuned model
-model.save("mmipo_wamv_v3_fine_tuned")
+model.save("mipo_wamv_v3_fine_tuned")
 env.close()
