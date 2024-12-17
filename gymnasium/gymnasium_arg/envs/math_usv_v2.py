@@ -166,6 +166,7 @@ class MATH_USV_V2(gym.Env):
         k1 = 50 # Reward weight for navigating to center
         k2 = 50 # Reward weight for maintaining heading
         k3 = 10 # Reward weight for smooth action
+        k4 = 5 # Reward weight for reserving energy
 
         # Reward of navigating to center
         # rew1 = k1*torch.exp(-(torch.norm(self.refer_pose[:2]-self.veh_obs['pose'][0][:2], p=2)**2/0.25))
@@ -178,6 +179,8 @@ class MATH_USV_V2(gym.Env):
         # Reward of smooth action
         rew3 = -k3 * torch.norm(self.veh_obs['action'][0] - self.veh_obs['action'][1], p=1) / self.__action_shape[0]
 
+        # Reward of reserving energy
+        rew4 = -k4 * torch.norm(self.veh_obs['action'][0][:2], p=1) / 2
         # Constraint
         const = []
 
@@ -192,15 +195,17 @@ class MATH_USV_V2(gym.Env):
         rew1 = rew1 / self.info['max_rew']
         rew2 = rew2 / self.info['max_rew']
         rew3 = rew3 / self.info['max_rew']
+        rew4 = rew4 / self.info['max_rew']
         # Convert rewards to scalars for logging and further processing
         rew1_value = rew1.item()
         rew2_value = rew2.item()
         rew3_value = rew3.item()
-        rew = rew1_value + rew2_value + rew3_value
+        rew4_value = rew4.item()
+        rew = rew1_value + rew2_value + rew3_value + rew4_value
 
         # Output formatting
         sgn_bool = lambda x: True if x >= 0 else False
-        output = "\rstep:{:4d}, cmd: [x:{}, y:{}, yaw:{}], action: [l_t:{}, r_t:{}, l_a:{}, r_a:{}], rews: [{}, {}, {}] const:[{}]".format(
+        output = "\rstep:{:4d}, cmd: [x:{}, y:{}, yaw:{}], action: [l_t:{}, r_t:{}, l_a:{}, r_a:{}], rews: [{}, {}, {}, {}] const:[{}]".format(
             self.info['step_cnt'],
             " {:4.2f}".format(self.cmd_vel[0].item()) if sgn_bool(self.cmd_vel[0].item()) else "{:4.2f}".format(self.cmd_vel[0].item()),
             " {:4.2f}".format(self.cmd_vel[1].item()) if sgn_bool(self.cmd_vel[1].item()) else "{:4.2f}".format(self.cmd_vel[1].item()),
@@ -212,6 +217,7 @@ class MATH_USV_V2(gym.Env):
             " {:4.2f}".format(rew1_value) if sgn_bool(rew1_value) else "{:4.2f}".format(rew1_value),
             " {:4.2f}".format(rew2_value) if sgn_bool(rew2_value) else "{:4.2f}".format(rew2_value),
             " {:4.2f}".format(rew3_value) if sgn_bool(rew3_value) else "{:4.2f}".format(rew3_value),
+            " {:4.2f}".format(rew4_value) if sgn_bool(rew4_value) else "{:4.2f}".format(rew4_value),
             " {:4.2f}".format(const[0]) if sgn_bool(const[0]) else "{:4.2f}".format(const[0]),
         )
         sys.stdout.write(output)
@@ -229,7 +235,7 @@ class MATH_USV_V2(gym.Env):
         if rew1.item() <= -0.5:
             termination = True
 
-        if rew >=0.95:
+        if rew >=0.9:
             if self.dp_cnt >= 100:
                 termination = True
             else:

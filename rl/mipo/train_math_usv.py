@@ -7,10 +7,11 @@ from sb3_arg.FeatureExtractor import USVFeatureExtractor, USVGRUExtractor, USVCN
 from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv, SubprocVecEnv
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.env_util import make_vec_env
-from gymnasium_arg.envs import MATH_USV_V1
+from gymnasium_arg.envs import MATH_USV_V2
 from datetime import date
 import numpy as np
 import torch as th
+import subprocess
 
 
 def make_env(render_mode="none"):
@@ -18,7 +19,7 @@ def make_env(render_mode="none"):
     Helper function to create a new environment instance.
     """
     def _init():
-        return MATH_USV_V1(render_mode=render_mode, hist_frame=50, device='cuda')
+        return MATH_USV_V2(render_mode=render_mode, hist_frame=2, device='cuda')
     return _init
 
 def linear_schedule(initial_lr: float):
@@ -40,7 +41,7 @@ learning_rate_schedule = linear_schedule(initial_learning_rate)
 
 warnings.filterwarnings("ignore")
 
-n_envs = 10
+n_envs = 50
 
 vec_env = make_vec_env(make_env(render_mode="none"), n_envs=n_envs)
 
@@ -49,7 +50,7 @@ policy_kwargs = dict(
     net_arch=[dict(pi=[128, 128, 64], vf=[128, 128, 64])],
     features_extractor_class=USVFeatureExtractor,
     # features_extractor_kwargs=dict(hist_frame=50, imu_size=10, action_size=4, cmd_size=3, refer_size=3, latent_dim=6+128),
-    features_extractor_kwargs=dict(hist_frame=50, imu_size=9, action_size=4, cmd_size=2, refer_size=0, latent_dim=6+128),
+    features_extractor_kwargs=dict(hist_frame=2, imu_size=9, action_size=4, cmd_size=2, refer_size=0, latent_dim=6+128),
 )
 
 today = date.today()
@@ -76,6 +77,11 @@ model = MIPO(
     ent_coef=0.01,
     device='cuda',
     tensorboard_log='tb_mipo')
+
+pid = os.getpid()
+print(f"{os.getpid()}  : Press Enter to continue...")
+# sudo taskset -cp 0-5 <pid>
+subprocess.run(["sudo", "taskset", "-cp", "0-5", str(pid)])
 
 model.learn(total_timesteps=200_000_000, tb_log_name='tb_mipo', callback=checkpoint_callback)
 model.save("mipo_wamv_v3")
