@@ -267,7 +267,8 @@ class MATH_USV_V1(gym.Env):
         ang_goal_diff = torch.atan2(goal_diff[1], goal_diff[0])
         norm_goal_diff = torch.norm(goal_diff, p=2)
         self.cmd_vel = torch.tensor([torch.cos(ang_goal_diff), torch.sin(ang_goal_diff), yaw], device=self.device, dtype=torch.float32)
-        self.cmd_vel = self.cmd_vel*norm_goal_diff if norm_goal_diff < 1 else self.cmd_vel
+        if norm_goal_diff < 1:
+            self.cmd_vel[:2] = self.cmd_vel[:2]*norm_goal_diff 
 
         # Convert all parts to NumPy-compatible formats before concatenation
         obs = np.concatenate([
