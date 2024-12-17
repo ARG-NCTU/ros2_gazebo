@@ -74,7 +74,7 @@ class USV_V2(gym.Env):
             'total_step': 0,
         }
         
-        
+        super(USV_V2, self).__init__()
         ################ ROS2 params ################
         rclpy.init()
         self.excutor = MultiThreadedExecutor()
@@ -105,46 +105,39 @@ class USV_V2(gym.Env):
         self.__obs_shape = {
             'imu': (hist_frame, 10),
             'action': (hist_frame, 4),
-            'latent': self.info['latent_dim'],
-            # 'rl_obs': 6+self.info['latent_dim'],
             'cmd_vel': (3, ),
-            'refer': (3, ),
         }
-        # (
-        #     self.info['hist_frame']*self.__action_shape[0] + # hist action: hist cmd_vel
-        #     self.info['hist_frame']*10  # hist imu (ori + ang_vel + pos_acc)
-        # )
-        # i = 1
-        # tb_vae_name = f'./tb_vae/{self.info["node_name"]}_{i}'
-        # while os.path.exists(f'{tb_vae_name}'):
-        #     i += 1
-        #     tb_vae_name = f'./tb_vae/{self.info["node_name"]}_{i}'
-        # self.vae_writer = SummaryWriter(tb_vae_name)
-
-        # self.vae = VAE(imu_dim=self.__obs_shape['imu'], action_dim=self.__obs_shape['action'], latent_dim=self.__obs_shape['latent'])
-        # self.vae_optimizer = optim.Adam(self.vae.parameters(), lr=1e-5)
-        self.cmd_vel = np.array([0.0, 0.0, 0.0])
-        # self.refer_ori = np.array([0, 0, 0, 1], dtype=np.float32)
-        # self.refer_pos = np.array([0, 0, 0], dtype=np.float32)
-        self.refer_pose = np.array([0, 0, 0], dtype=np.float32)
         self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=self.__action_shape, dtype=np.float32, seed=seed)
         self.observation_space = gym.spaces.Box(
-            low=-np.inf,
-            high=np.inf,
-            shape=(np.prod(self.__obs_shape['imu'])+np.prod(self.__obs_shape['action'])+np.prod(self.__obs_shape['cmd_vel'])+np.prod(self.__obs_shape['refer']),),
+            low=np.hstack((
+                    np.full((np.prod(self.__obs_shape['imu']), ), -np.inf), 
+                    np.full((np.prod(self.__obs_shape['action']), ), -1.0), 
+                    np.full((np.prod(self.__obs_shape['cmd_vel']), ), -1.0)
+                    )),
+            high=np.hstack((
+                    np.full((np.prod(self.__obs_shape['imu']), ), np.inf), 
+                    np.full((np.prod(self.__obs_shape['action']), ), 1.0), 
+                    np.full((np.prod(self.__obs_shape['cmd_vel']), ), 1.0)
+                    )),
+            shape=(np.prod(self.__obs_shape['imu']) + np.prod(self.__obs_shape['action']) + np.prod(self.__obs_shape['cmd_vel']),),
             dtype=np.float32,
             seed=seed
         )
-        # gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.__obs_shape['rl_obs'], ), dtype=np.float32, seed=seed)
-        
         #############################################
-        self.__unpause()
+        self.cmd_vel = np.array([0.0, 0.0, 0.0], dtype=np.float32)
+        self.refer_pose = np.array([0, 0, 0], dtype=np.float32)
+        # self.__unpause()
     
     def reset(self, seed=None, options=None):
+        super().reset(seed=seed)
         self.__pause()
-        # self.refer_pos = np.array([0, 0, 0], dtype=np.float32)
-        self.refer_pose = np.array([0, 0, 0], dtype=np.float32)
-        self.cmd_vel = np.array([0.0, 0.0, 0.0])
+        self.dp_cnt = 0
+        x = random.uniform(-1, 1)
+        y = np.sqrt(1 - x**2)*random.uniform(-1, 1)
+        yaw = random.uniform(-np.pi, np.pi)
+        self.refer_pose = np.array([x, y, yaw], dtype=np.float32)
+        self.refer_pose = self.refer_pose[:2]*random.uniform(0.5, 2.0)
+        # self.cmd_vel = np.array([0.0, 0.0, 0.0])
         self.veh.reset()
         self.info['last_clock_time'] = None
         self.action = np.zeros(self.__action_shape)
@@ -156,20 +149,6 @@ class USV_V2(gym.Env):
         self.__clock_sync()
         self.info['total_step'] += 1
         self.action = action
-        # cmd_vel = TwistStamped()
-        # cmd_vel.header.stamp = self.node.get_clock().now().to_msg()
-        # cmd_vel.twist.linear.x = float(action[0])
-        # cmd_vel.twist.linear.y = 0.0
-        # cmd_vel.twist.linear.z = 0.0
-        # cmd_vel.twist.angular.x = 0.0
-        # cmd_vel.twist.angular.y = 0.0
-        # cmd_vel.twist.angular.z = float(action[1])
-        # cmd_vel.twist.linear.x = float(action[0])
-        # cmd_vel.twist.linear.y = float(action[1])
-        # cmd_vel.twist.linear.z = float(action[2])
-        # cmd_vel.twist.angular.x = float(action[3])
-        # cmd_vel.twist.angular.y = float(action[4])
-        # cmd_vel.twist.angular.z = float(action[5])
 
         self.veh.step(action)
 
@@ -178,10 +157,10 @@ class USV_V2(gym.Env):
             'termination': self.get_termination(),
             'truncation': self.get_truncation(),
         }
-        state['reward'], state['constraint_costs'] = self.get_reward_constraint(self.cmd_vel)
+        state['reward'], state['constraint_costs'] = self.get_reward_constraint()
 
         sgn_bool = lambda x: True if x >= 0 else False
-        output = "\rstep:{:4d}, cmd: [x:{}, y:{}, yaw:{}], action: [l_t:{}, r_t:{}, l_a:{}, r_a:{}], rews: [{}, {}, {}] const:[{}]".format(
+        output = "\rstep:{:4d}, cmd: [x:{}, y:{}, yaw:{}], action: [l_t:{}, r_t:{}, l_a:{}, r_a:{}], rews: [{}, {}, {}, {}] const:[{}]".format(
             self.veh.info['step_cnt'],
             " {:4.2f}".format(self.cmd_vel[0]) if sgn_bool(self.cmd_vel[0]) else "{:4.2f}".format(self.cmd_vel[0]),
             " {:4.2f}".format(self.cmd_vel[1]) if sgn_bool(self.cmd_vel[1]) else "{:4.2f}".format(self.cmd_vel[1]),
@@ -193,33 +172,33 @@ class USV_V2(gym.Env):
             " {:4.2f}".format(state['reward'][0]) if sgn_bool(state['reward'][0]) else "{:4.2f}".format(state['reward'][0]),
             " {:4.2f}".format(state['reward'][1]) if sgn_bool(state['reward'][1]) else "{:4.2f}".format(state['reward'][1]),
             " {:4.2f}".format(state['reward'][2]) if sgn_bool(state['reward'][2]) else "{:4.2f}".format(state['reward'][2]),
+            " {:4.2f}".format(state['reward'][3]) if sgn_bool(state['reward'][3]) else "{:4.2f}".format(state['reward'][3]),
             " {:4.2f}".format(state['constraint_costs'][0]) if sgn_bool(state['constraint_costs'][0]) else "{:4.2f}".format(state['constraint_costs'][0]),
-            # " {:4.2f}".format(state['constraint_costs'][1]) if sgn_bool(state['constraint_costs'][1]) else "{:4.2f}".format(state['constraint_costs'][1]),
         )
         sys.stdout.write(output)
         sys.stdout.flush()
 
-        state['reward'] = state['reward'].sum()
 
-        # if (state['constraint_costs'][0] > 0.8 or state['constraint_costs'][1] > 0.3) and self.veh.info['step_cnt'] % 30 == 0:
-        #     state['termination'] = True
-
-        if state['reward'] <= -1.5:
+        if state['reward'][0] <= -0.5:
             state['termination'] = True
 
-        if self.veh.info['step_cnt'] % 1024 == 0:
-            x = random.uniform(-1, 1)
-            y = np.sqrt(1 - x**2)*random.uniform(-1, 1)
-            self.cmd_vel = np.array([x, y, 0])
-            yaw = R.from_quat([self.veh.obs['pose'][0][3], 
-                               self.veh.obs['pose'][0][4], 
-                               self.veh.obs['pose'][0][5], 
-                               self.veh.obs['pose'][0][6]]).as_euler('xyz', degrees=False)[2]  # Extract yaw
-            self.refer_pose = np.hstack((self.veh.obs['pose'][0][:2], yaw))
+        state['reward'] = state['reward'].sum()
+
+        if self.veh.info['step_cnt'] >= self.info['maxstep']:
+            state['truncation'] = True
+
+        if state['reward'] >=0.9:
+            if self.dp_cnt >= 100:
+                state['termination'] = True
+            else:
+                self.dp_cnt += 1
+        else:
+            self.dp_cnt = 0
+
         info = self.veh.info
         info['constraint_costs'] = np.array(state['constraint_costs'], dtype=np.float32)
 
-        if state['termination'] or state['truncation'] or self.veh.info['step_cnt'] >= self.info['maxstep']:
+        if state['termination'] or state['truncation']:
             self.veh.step(np.zeros(self.__action_shape))
 
         self.__pause()
@@ -241,78 +220,60 @@ class USV_V2(gym.Env):
 
     def get_observation(self):
         veh_obs = self.veh.get_observation()
-        imu_obs = veh_obs['imu'].flatten()
+        imu_obs = veh_obs['imu']
+        r, p, y = R.from_quat(imu_obs[:, :4]).as_euler('xyz', degrees=False).T
+        yaw = self.refer_pose[2]-y[0]
+        yaw = (yaw + np.pi) % (2 * np.pi) - np.pi
+        imu_obs = np.hstack((np.array([r]).T, np.array([p]).T, imu_obs[:, 4:])).flatten()
         action_obs = veh_obs['action'].flatten()
-        # cmd_obs = np.array([self.cmd_vel[0], self.cmd_vel[1], self.cmd_vel[2], self.cmd_vel[3], self.cmd_vel[4], self.cmd_vel[5]])
-        ref_yaw = self.refer_pose[2]
-        refer_ori = R.from_euler('xyz', [0, 0, self.refer_pose[2]]).as_quat()
-        refer_pose = np.hstack((np.hstack((self.refer_pose[:2], 0)), refer_ori))
-        local_pose_diff = relative_pose_tf(self.veh.obs['pose'][0], refer_pose)
-        veh_yaw = R.from_quat([veh_obs['pose'][0][3], 
-                               veh_obs['pose'][0][4], 
-                               veh_obs['pose'][0][5], 
-                               veh_obs['pose'][0][6]]).as_euler('xyz', degrees=False)[2]
-        obs = np.concatenate([imu_obs, action_obs, self.cmd_vel, np.hstack((local_pose_diff[:2], veh_yaw-ref_yaw))])
+
+
+        goal_pose = np.hstack((self.refer_pose[:2], 0, R.from_euler('xyz', [0, 0, self.refer_pose[2]]).as_quat()))
+        goal_diff = relative_pose_tf(goal_pose, self.veh.obs['pose'][0])
+        ang_goal_diff = np.arctan2(goal_diff[1], goal_diff[0])
+        norm_goal_diff = np.linalg.norm(goal_diff[:2], ord=2)
+        self.cmd_vel = np.array([np.cos(ang_goal_diff), np.sin(ang_goal_diff), yaw], dtype=np.float32)
+        if norm_goal_diff < 1:
+            self.cmd_vel[:2] = self.cmd_vel[:2]*norm_goal_diff
+
+        obs = np.concatenate([
+            imu_obs, 
+            action_obs, 
+            self.cmd_vel
+        ], axis=0)
+
         return obs
 
-    def get_reward_constraint(self, cmd_vel):
-        k1 = 60
-        k2 = 30
-        k3 = 10
-        operator = lambda x: 1 if x >= 0 else -1
-        # sigmoid = lambda x: 1/(1+np.exp(-x))
-        relu = lambda x: x if x >= 0 else 0
-        '''
-            1. reward of following dir vel
-            2. reward of followning norm vel
-            3. reward of smooth action
-        '''
-        # reward of following cmd_vel dir
-        refer_ori = R.from_euler('xyz', [0, 0, self.refer_pose[2]]).as_quat()
-        refer_pose = np.hstack((np.hstack((self.refer_pose[:2], 0)), refer_ori))
-        local_pose_diff = relative_pose_tf(self.veh.obs['pose'][0], refer_pose)
-        local_pose_norm = np.linalg.norm(local_pose_diff[:2], ord=2)
-        cmd_dir = np.arctan2(cmd_vel[1], cmd_vel[0])
-        veh_dir = np.arctan2(local_pose_diff[1], local_pose_diff[0])
+    def get_reward_constraint(self):
+        ## reward and constraints ##
+        k1 = 50 # Reward weight for navigating to center
+        k2 = 50 # Reward weight for maintaining heading
+        k3 = 10 # Reward weight for smooth action
+        k4 = 5 # Reward weight for reserving energy
 
-        theta = np.cos(veh_dir - cmd_dir)
-        rew1 = k1*theta-relu(-operator(theta)*local_pose_norm)
+        # Reward of navigating to center
+        # rew1 = k1*torch.exp(-(np.linalg.norm(self.refer_pose[:2]-self.veh.obs['pose'][0][:2], p=2)**2/0.25))
+        rew1 = k1*(1-(np.linalg.norm(self.refer_pose[:2]-self.veh.obs['pose'][0][:2], ord=2)))
 
-        # reward of thrust
-        cmd_vel_norm = np.linalg.norm(cmd_vel[:2], ord=2)
-        rew2 = 1 - 2*(abs(self.action[:2])-cmd_vel_norm)
-        rew2 = k2*np.sum(rew2) / 2
-        # rew2 = -k2*np.linalg.norm(relu(np.array([])), ord=1) / self.__action_shape[0]
+        # Reward of maintaining heading
+        veh_quat = self.veh.obs['pose'][0][3:7]
+        ref_yaw = self.refer_pose[2]
+        rew2 = k2*np.cos(ref_yaw - R.from_quat(veh_quat).as_euler('xyz', degrees=False)[2])
+        # Reward of smooth action
+        rew3 = -k3 * np.linalg.norm(self.veh.obs['action'][0] - self.veh.obs['action'][1], ord=1) / self.__action_shape[0]
 
-        # reward of smooth action
-        rew3 = -k3*np.linalg.norm(self.veh.obs['action'][0]-self.veh.obs['action'][1], ord=1) / self.__action_shape[0]
-
-        ###################### constraint ######################
+        # Reward of reserving energy
+        rew4 = -k4 * np.linalg.norm(self.action[:2], ord=1) / 2
+        # Constraint
         const = []
 
-        # vel tolerrance constraint
-        # dot_product = np.dot(self.cmd_vel[:2], veh_vel[:2])
-        # magnitude_cmd = np.linalg.norm(self.cmd_vel[:2])
-        # magnitude_vel = np.linalg.norm(veh_vel[:2])
-        # if magnitude_cmd==0 or magnitude_vel<=0.1:
-        #     const.append(abs(magnitude_cmd - magnitude_vel))
-        # else:
-        #     const.append(
-        #         (1 - dot_product / (magnitude_cmd * magnitude_vel))*0.1
-        #     )
-        # const.append(0.0)
+        # Constraint of thrust
+        cmd_vel_norm = np.linalg.norm(self.cmd_vel[:2], p=2)
+        cons1 = np.sum(abs((abs(self.action[:2]) - cmd_vel_norm)))/2
 
-        # dir constraint
-        veh_yaw = R.from_quat([self.veh.obs['pose'][0][3], 
-                               self.veh.obs['pose'][0][4], 
-                               self.veh.obs['pose'][0][5], 
-                               self.veh.obs['pose'][0][6]]).as_euler('xyz', degrees=False)[2]
-        ref_yaw = self.refer_pose[2]
-        const.append(
-            (1-np.cos(veh_yaw - ref_yaw))/2
-        )
+        const.append(cons1)
 
-        return np.array([rew1, rew2, rew3])/self.info['max_rew'], const
+        return np.array([rew1, rew2, rew3, rew4])/self.info['max_rew'], const
     
     def get_termination(self):
         return self.veh.obs['termination']

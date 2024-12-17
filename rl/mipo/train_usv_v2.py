@@ -30,22 +30,21 @@ initial_learning_rate = 1e-5
 learning_rate_schedule = linear_schedule(initial_learning_rate)
 
 warnings.filterwarnings("ignore")
-env = gym.make("gymnasium_arg:usv-v2", world='lake', veh='wamv_v3', max_thrust=15*746/9.8, hist_frame=50)
-# env = gym.make("gymnasium_arg:usv-v1", world='waves', veh='blueboat', max_thrust=10)
+env = gym.make("gymnasium_arg:usv-v2", world='lake', veh='wamv_v3', max_thrust=15*746/9.8, hist_frame=2)
 env = DummyVecEnv([lambda: env])
 
 policy_kwargs = dict(
     activation_fn=th.nn.ReLU,
     net_arch=[dict(pi=[128, 128, 64], vf=[128, 128, 64])],
     features_extractor_class=USVFeatureExtractor,
-    features_extractor_kwargs=dict(hist_frame=50, imu_size=10, action_size=4, cmd_size=3, refer_size=3, latent_dim=6+128),
+    features_extractor_kwargs=dict(hist_frame=2, imu_size=8, action_size=4, cmd_size=3, latent_dim=128),
 )
 
 today = date.today()
 checkpoint_callback = CheckpointCallback(
   save_freq=100000,
   save_path="./logs/",
-  name_prefix="dp_"+str(today),
+  name_prefix="mipo_gz_wamv3"+str(today),
   save_replay_buffer=True,
   save_vecnormalize=True,
 )
@@ -57,8 +56,8 @@ model = MIPO(
     learning_rate=learning_rate_schedule,
     batch_size=128,
     n_steps=4096,
-    num_constraints=2,  # Pass the number of constraints to the policy
-    constraint_thresholds=np.array([0.01, 0.3]),  # Initial thresholds d_k
+    num_constraints=1,  # Pass the number of constraints to the policy
+    constraint_thresholds=np.array([0.5]),  # Initial thresholds d_k
     barrier_coefficient=1000.0,                      # Hyperparameter t
     alpha=0.02,                                   # Hyperparameter α
     n_epochs=10,
@@ -66,6 +65,6 @@ model = MIPO(
     device='cuda',
     tensorboard_log='tb_mipo')
 
-model.learn(total_timesteps=20_000_000, tb_log_name='tb_mipo', callback=checkpoint_callback)
-model.save("ppo_blueboat_v3")
+model.learn(total_timesteps=100_000_000, tb_log_name='tb_mipo', callback=checkpoint_callback)
+model.save("mipo_wamv_v3")
 env.close()
