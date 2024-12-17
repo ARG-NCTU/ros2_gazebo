@@ -7,7 +7,7 @@ from sb3_arg.FeatureExtractor import USVFeatureExtractor, USVGRUExtractor, USVCN
 from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv, SubprocVecEnv
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.env_util import make_vec_env
-from gymnasium_arg.envs import MATH_USV_V2
+from gymnasium_arg.envs import MATH_USV_V1
 from datetime import date
 import numpy as np
 import torch as th
@@ -19,7 +19,7 @@ def make_env(render_mode="none"):
     Helper function to create a new environment instance.
     """
     def _init():
-        return MATH_USV_V2(render_mode=render_mode, hist_frame=2, device='cuda')
+        return MATH_USV_V1(render_mode=render_mode, hist_frame=2, device='cuda')
     return _init
 
 def linear_schedule(initial_lr: float):
