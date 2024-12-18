@@ -378,7 +378,7 @@ class MIPO(PPO):
     def __init__(
         self,
         *args,
-        policy = MIPOActorCriticPolicy,
+        policy=MIPOActorCriticPolicy,
         num_constraints: int = 0,
         alpha: float = 0.1,
         barrier_coefficient: float = 100.0,
@@ -412,20 +412,24 @@ class MIPO(PPO):
             constraint_thresholds = np.array([0.1] * self.num_constraints)
         self.initial_constraint_thresholds = constraint_thresholds  # d_k
         self.dynamic_constraint_thresholds = np.copy(constraint_thresholds)  # d_k^i
-        # Override the rollout buffer with the custom one
-        # self.rollout_buffer = ConstrainedRolloutBuffer(
-        #     self.n_steps,
-        #     self.observation_space,
-        #     self.action_space,
-        #     device=self.device,
-        #     gae_lambda=self.gae_lambda,
-        #     gamma=self.gamma,
-        #     n_envs=self.n_envs,
-        #     num_constraints=self.num_constraints,
-        # )
 
-        # Ensure policy is our custom policy
-        # assert isinstance(self.policy, MIPOActorCriticPolicy), "Policy must be MIPOActorCriticPolicy"
+    def _setup_model(self):
+        super()._setup_model()
+        # Now env, observation_space, action_space are defined
+        # Store the number of environments for clarity
+        self.num_envs = self.env.num_envs
+
+        self.rollout_buffer = ConstrainedRolloutBuffer(
+            self.n_steps,
+            self.observation_space,
+            self.action_space,
+            device=self.device,
+            gae_lambda=self.gae_lambda,
+            gamma=self.gamma,
+            n_envs=self.num_envs,
+            num_constraints=self.num_constraints,
+        )
+        assert isinstance(self.policy, MIPOActorCriticPolicy), "Policy must be MIPOActorCriticPolicy"
 
     def collect_rollouts(self, env: VecEnv, callback, rollout_buffer, n_rollout_steps):
         self.policy.set_training_mode(False)
@@ -436,39 +440,37 @@ class MIPO(PPO):
             with th.no_grad():
                 obs_tensor = th.as_tensor(self._last_obs).to(self.device)
                 actions, values, cost_values, log_probs = self.policy.forward(obs_tensor)
-                # Get cost value predictions
-                # cost_values = self.policy.get_cost_values(obs_tensor)
-                # cost_values_cpu = th.cat(cost_values, dim=1).cpu().numpy()  # Shape: (n_envs, num_constraints)
 
             actions_cpu = actions.cpu().numpy()
 
             # Clip actions (if needed)
-            clipped_actions = actions_cpu
             if isinstance(self.action_space, spaces.Box):
                 clipped_actions = np.clip(actions_cpu, self.action_space.low, self.action_space.high)
+            else:
+                clipped_actions = actions_cpu
 
-            # Step environment
+            # Step all environments simultaneously
             new_obs, rewards, dones, infos = env.step(clipped_actions)
             self.num_timesteps += env.num_envs
 
-            # Handle constraint costs
+            # Extract cost rewards for all envs
             cost_rewards = np.array([info.get('constraint_costs', np.zeros(self.num_constraints)) for info in infos])
 
-            # Give access to local variables
+            # Update callback
             callback.update_locals(locals())
             if callback.on_step() is False:
                 return False
 
-            # Add to rollout buffer
+            # Store transitions for all envs
             rollout_buffer.add(
                 self._last_obs,
                 actions_cpu,
                 rewards,
                 self._last_episode_starts,
-                values,       # Pass values as PyTorch tensor
-                log_probs,    # Pass log_probs as PyTorch tensor
+                values,
+                log_probs,
                 cost_rewards=cost_rewards,
-                cost_values=cost_values,  # Pass cost_values as PyTorch tensor
+                cost_values=cost_values,
             )
 
             self._last_obs = new_obs
@@ -476,40 +478,22 @@ class MIPO(PPO):
             n_steps += 1
 
         with th.no_grad():
-            # Compute value for the last timestep
+            # Compute value for the last timestep for all envs
             obs_tensor = th.as_tensor(new_obs).to(self.device)
             _, values, cost_values, _ = self.policy.forward(obs_tensor)
-            # Get last cost values
-            # cost_values = self.policy.get_cost_values(obs_tensor)
-            # cost_values = th.cat(cost_values, dim=1)
 
         rollout_buffer.compute_returns_and_advantage(values, dones)
         callback.on_rollout_end()
         return True
 
-    def _setup_model(self):
-        super()._setup_model()
-        # Now env, observation_space, action_space are defined
-        self.rollout_buffer = ConstrainedRolloutBuffer(
-            self.n_steps,
-            self.observation_space,
-            self.action_space,
-            device=self.device,
-            gae_lambda=self.gae_lambda,
-            gamma=self.gamma,
-            n_envs=self.n_envs,
-            num_constraints=self.num_constraints,
-        )
-        assert isinstance(self.policy, MIPOActorCriticPolicy), "Policy must be MIPOActorCriticPolicy" 
-
     def train(self) -> None:
         # Update optimizer learning rate
         self._update_learning_rate(self.policy.optimizer)
 
-        # Get current learning rate
+        # Current learning rate
         current_lr = self.policy.optimizer.param_groups[0]['lr']
 
-        # Get current clip range
+        # Clip range
         clip_range = self.clip_range
         if callable(clip_range):
             clip_range = clip_range(self._current_progress_remaining)
@@ -520,13 +504,43 @@ class MIPO(PPO):
         barrier_losses = []
         cost_value_losses = []
 
-        # Compute cumulative constraint costs J_C_k(π_i) over the entire buffer
+        def gaussian_pdf(x, mean, std_dev):
+            # Compute the probability density of x under a normal distribution N(mean, std_dev^2)
+            # Add a small epsilon to std_dev to avoid division by zero if std_dev is extremely small.
+            std_dev = max(std_dev, 1e-8)
+            coefficient = 1.0 / (np.sqrt(2 * np.pi) * std_dev)
+            exponent = np.exp(-((x - mean) ** 2) / (2 * std_dev ** 2))
+            return coefficient * exponent
+
+        # Reshape cost_rewards to (T, num_constraints) where T = buffer_size * n_envs
         cost_rewards_buffer = self.rollout_buffer.cost_rewards.reshape(-1, self.num_constraints)
-        J_C_k_pi_i = np.zeros(cost_rewards_buffer.shape[1])
-        rollout_num = cost_rewards_buffer.shape[0]
-        for i, costs in enumerate(cost_rewards_buffer):
-            J_C_k_pi_i += costs*(self.gamma**2)
-        J_C_k_pi_i /= rollout_num
+        T = cost_rewards_buffer.shape[0]
+
+        # Compute the mean and std of the costs for each constraint
+        costs_mean = cost_rewards_buffer.mean(axis=0)
+        costs_std = cost_rewards_buffer.std(axis=0)
+
+        # Initialize J_C_k_pi_i array
+        J_C_k_pi_i = np.zeros(self.num_constraints)
+
+        # Compute the probability-weighted discounted sum for each constraint
+        for k in range(self.num_constraints):
+            weighted_sum = 0.0
+            weight_total = 0.0
+            for t in range(T):
+                # Compute probability value for the observed cost at time t
+                prob_value = gaussian_pdf(cost_rewards_buffer[t, k], costs_mean[k], costs_std[k])
+                # Discounted, probability-weighted cost
+                discounted_weighted_cost = (self.gamma ** t) * cost_rewards_buffer[t, k] * prob_value
+                weighted_sum += discounted_weighted_cost
+                weight_total += (self.gamma ** t) * prob_value
+
+            # Normalize by the total probability mass (weighted by discount) to get an expectation
+            if weight_total > 1e-12:
+                J_C_k_pi_i[k] = weighted_sum / weight_total
+            else:
+                # If weight_total is near zero, fallback to zero or some default value
+                J_C_k_pi_i[k] = 0.0
 
         # Update dynamic constraint thresholds
         for k in range(self.num_constraints):
@@ -535,25 +549,24 @@ class MIPO(PPO):
                 J_C_k_pi_i[k] + self.alpha * self.initial_constraint_thresholds[k]
             )
 
-        # Train for n_epochs
+        total_samples = self.n_steps * self.num_envs
+        self.logger.record("train/total_samples", total_samples)
+
         for epoch in range(self.n_epochs):
             approx_kl_divs = []
-            # Do a complete pass on the rollout buffer
+            # Sample batches
             for rollout_data in self.rollout_buffer.get(self.batch_size):
                 actions = rollout_data.actions
                 if isinstance(self.action_space, spaces.Discrete):
                     actions = actions.long().flatten()
 
-                # Evaluate actions
-                values, cost_value, log_prob, entropy = self.policy.evaluate_actions(rollout_data.observations, actions)
-                cost_values = cost_value
+                # Evaluate actions for the current batch
+                values, cost_value, log_prob, entropy = self.policy.evaluate_actions(
+                    rollout_data.observations, actions
+                )
 
-
-                values = values.flatten()
                 advantages = rollout_data.advantages
-                cost_advantages = rollout_data.cost_advantages  # Shape: [batch_size, num_constraints]
-
-                # Normalize advantages
+                cost_advantages = rollout_data.cost_advantages
                 advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
                 for i in range(self.num_constraints):
                     cost_advantages[:, i] = (cost_advantages[:, i] - cost_advantages[:, i].mean()) / (
@@ -567,35 +580,35 @@ class MIPO(PPO):
                 policy_loss = -th.min(surr1, surr2).mean()
 
                 # Value loss
-                values_pred = values
+                values_pred = values.flatten()
                 value_loss = F.mse_loss(rollout_data.returns, values_pred)
 
                 # Cost value losses
                 cost_value_loss = 0
                 for i in range(self.num_constraints):
-                    cost_values_pred = cost_values[:, i]
+                    cost_values_pred = cost_value[:, i]
                     cost_returns = rollout_data.constraint_returns[:, i]
                     cost_value_loss += F.mse_loss(cost_returns, cost_values_pred)
 
                 # Barrier function
-                # Compute cumulative cost returns for the batch
-                cumulative_constraint_costs = rollout_data.constraint_returns.mean(dim=0)  # Shape: [num_constraints]
+                avg_cost_advantages = rollout_data.cost_advantages.mean(dim=0)
+                J_C_k_pi_i_th = th.as_tensor(J_C_k_pi_i, dtype=th.float32, device=self.device)
+
                 barrier_terms = []
                 for i in range(self.num_constraints):
-                    # d_k^i - J_C_k(π_i)
-                    barrier_argument = self.dynamic_constraint_thresholds[i] - cumulative_constraint_costs[i]
-                    # To prevent log(0) or negative values, ensure the argument is positive
+                    # Replace cumulative_constraint_costs[i] with J_C_k_pi_i_th[i]
+                    barrier_argument = self.dynamic_constraint_thresholds[i] - (
+                        J_C_k_pi_i_th[i] + (1 / (1 - self.gamma)) * avg_cost_advantages[i]
+                    )
                     epsilon = 1e-8
                     barrier_argument = th.clamp(barrier_argument, min=epsilon)
-                    # log(d_k^i - J_C_k(π_i)) / t
-                    barrier_term = th.log(barrier_argument)/self.barrier_coefficient
+                    barrier_term = th.log(barrier_argument) / self.barrier_coefficient
                     barrier_terms.append(barrier_term)
-                # Sum up barrier terms
+
                 barrier_loss = -th.sum(th.stack(barrier_terms))
 
                 # Entropy loss
                 if entropy is None:
-                    # Approximate entropy when no analytical form
                     entropy_loss = -log_prob.mean()
                 else:
                     entropy_loss = -entropy.mean()
@@ -603,7 +616,6 @@ class MIPO(PPO):
                 # Total loss
                 loss = policy_loss + self.vf_coef * value_loss + self.vf_coef * cost_value_loss + barrier_loss + self.ent_coef * entropy_loss
 
-                # Optimization step
                 self.policy.optimizer.zero_grad()
                 loss.backward()
                 th.nn.utils.clip_grad_norm_(self.policy.parameters(), self.max_grad_norm)
@@ -623,6 +635,8 @@ class MIPO(PPO):
             explained_var = explained_variance(
                 self.rollout_buffer.values.flatten(), self.rollout_buffer.returns.flatten()
             )
+
+            # Log additional info
             self.logger.record("train/barrier_loss", np.mean(barrier_losses))
             self.logger.record("train/policy_loss", np.mean(pg_losses))
             self.logger.record("train/value_loss", np.mean(value_losses))
@@ -636,7 +650,6 @@ class MIPO(PPO):
                 self.logger.record(f"train/dynamic_threshold_{i}", self.dynamic_constraint_thresholds[i])
 
     def _update_learning_rate(self, optimizer):
-        # Update the optimizer's learning rate
         lr = self.lr_schedule(self._current_progress_remaining)
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
