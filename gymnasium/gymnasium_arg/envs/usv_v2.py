@@ -103,7 +103,7 @@ class USV_V2(gym.Env):
         self.info['maxstep'] = 4096
         self.__action_shape = (4, )
         self.__obs_shape = {
-            'imu': (hist_frame, 10),
+            'imu': (hist_frame, 8),
             'action': (hist_frame, 4),
             'cmd_vel': (3, ),
         }
@@ -136,7 +136,7 @@ class USV_V2(gym.Env):
         y = np.sqrt(1 - x**2)*random.uniform(-1, 1)
         yaw = random.uniform(-np.pi, np.pi)
         self.refer_pose = np.array([x, y, yaw], dtype=np.float32)
-        self.refer_pose = self.refer_pose[:2]*random.uniform(0.5, 2.0)
+        self.refer_pose[:2] = self.refer_pose[:2]*random.uniform(0.5, 2.0)
         # self.cmd_vel = np.array([0.0, 0.0, 0.0])
         self.veh.reset()
         self.info['last_clock_time'] = None
@@ -268,7 +268,7 @@ class USV_V2(gym.Env):
         const = []
 
         # Constraint of thrust
-        cmd_vel_norm = np.linalg.norm(self.cmd_vel[:2], p=2)
+        cmd_vel_norm = np.linalg.norm(self.cmd_vel[:2], ord=2)
         cons1 = np.sum(abs((abs(self.action[:2]) - cmd_vel_norm)))/2
 
         const.append(cons1)
