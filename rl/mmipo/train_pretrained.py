@@ -8,16 +8,8 @@ from stable_baselines3.common.env_util import make_vec_env
 from gymnasium_arg.envs import MATH_USV_V1
 from datetime import date
 import numpy as np
-import torch
+import torch as th
 
-
-def make_env(render_mode="none"):
-    """
-    Helper function to create a new environment instance.
-    """
-    def _init():
-        return MATH_USV_V1(render_mode=render_mode, hist_frame=50, device='cuda')
-    return _init
 
 def linear_schedule(initial_lr: float):
     """
@@ -37,19 +29,15 @@ initial_learning_rate = 1e-6  # Slightly lower learning rate for fine-tuning
 learning_rate_schedule = linear_schedule(initial_learning_rate)
 
 warnings.filterwarnings("ignore")
-
-# Number of environments for parallel training
-n_envs = 10
-
-# Create vectorized environments for fine-tuning
-vec_env = make_vec_env(make_env(render_mode="none"), n_envs=n_envs)
+env = gym.make("gymnasium_arg:usv-v2", world='lake', veh='wamv_v3', max_thrust=15*746/9.8, hist_frame=2)
+env = DummyVecEnv([lambda: env])
 
 # Define policy architecture
 policy_kwargs = dict(
-    activation_fn=torch.nn.ReLU,
+    activation_fn=th.nn.ReLU,
     net_arch=[dict(pi=[128, 128, 64], vf=[128, 128, 64])],
     features_extractor_class=USVFeatureExtractor,
-    features_extractor_kwargs=dict(hist_frame=50, imu_size=10, action_size=4, cmd_size=3, refer_size=3, latent_dim=6+128),
+    features_extractor_kwargs=dict(hist_frame=2, imu_size=8, action_size=4, cmd_size=3, latent_dim=128),
 )
 
 # Callback for saving checkpoints during training
@@ -57,13 +45,13 @@ today = date.today()
 checkpoint_callback = CheckpointCallback(
     save_freq=100000,
     save_path="./logs/",
-    name_prefix="fine_tuned_dp_"+str(today),
+    name_prefix="mmipo_finetuned_gz_wamv3_"+str(today),
     save_replay_buffer=True,
     save_vecnormalize=True,
 )
 
 # Load the pre-trained model and attach the environment
-model = MMIPO.load("mmipo_wamv_v3", env=vec_env)
+model = MMIPO.load("mmipo_wamv_v3", env=env)
 
 # Update parameters for fine-tuning (if necessary)
 model.learning_rate = learning_rate_schedule
@@ -72,7 +60,7 @@ model.batch_size = 128
 model.tensorboard_log = 'tb_mmipo_fine_tuned'
 
 # Fine-tune the model
-fine_tune_timesteps = 5_000_000  # Adjust as needed
+fine_tune_timesteps = 100_000_000  # Adjust as needed
 model.learn(
     total_timesteps=fine_tune_timesteps, 
     tb_log_name='tb_mmipo_fine_tuned', 
@@ -81,4 +69,4 @@ model.learn(
 
 # Save the fine-tuned model
 model.save("mmipo_wamv_v3_fine_tuned")
-vec_env.close()
+env.close()

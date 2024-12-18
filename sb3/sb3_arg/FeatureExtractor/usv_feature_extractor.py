@@ -5,7 +5,7 @@ from gymnasium.spaces import Box
 
 
 class USVFeatureExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space: Box, hist_frame: int = 50, imu_size: int = 10, action_size: int = 6, cmd_size: int = 6, refer_size: int = 4, latent_dim: int = 32):
+    def __init__(self, observation_space: Box, hist_frame: int = 50, imu_size: int = 10, action_size: int = 6, cmd_size: int = 6, latent_dim: int = 32):
         super(USVFeatureExtractor, self).__init__(observation_space, features_dim=latent_dim)
         
         # Save parameters as attributes
@@ -13,14 +13,12 @@ class USVFeatureExtractor(BaseFeaturesExtractor):
         self.imu_size = imu_size
         self.action_size = action_size
         self.cmd_size = cmd_size
-        self.refer_size = refer_size
         self.latent_dim = latent_dim
         
         # Calculate lengths for slicing the flat observation vector
         self.imu_length = hist_frame * imu_size
         self.action_length = hist_frame * action_size
         self.cmd_length = cmd_size
-        self.refer_length = refer_size
         
         # IMU processing
         self.imu_extractor = nn.Sequential(
@@ -40,7 +38,7 @@ class USVFeatureExtractor(BaseFeaturesExtractor):
         
         # Final linear layer to produce latent representation
         self.fc = nn.Sequential(
-            nn.Linear(64 + 64 + self.cmd_length + self.refer_length, self.latent_dim),
+            nn.Linear(64 + 64 + self.cmd_length, self.latent_dim),
             nn.ReLU(),
             nn.Linear(self.latent_dim, self.latent_dim),
             nn.ReLU(),
@@ -51,20 +49,17 @@ class USVFeatureExtractor(BaseFeaturesExtractor):
         imu_end = self.imu_length
         action_end = imu_end + self.action_length
         cmd_end = action_end + self.cmd_length
-        refer_end = cmd_end + self.refer_length
 
         imu_obs = observations[:, :imu_end]
         action_obs = observations[:, imu_end:action_end]
         cmd_obs = observations[:, action_end:cmd_end]
-        refer_obs = observations[:, cmd_end:refer_end]
         
         imu_features = self.imu_extractor(imu_obs)
         action_features = self.action_extractor(action_obs)
         cmd_features = cmd_obs  # If you have processing layers for cmd_vel, apply them here
-        refer_features = refer_obs
         
         # Concatenate and pass through final layer
-        features = torch.cat((imu_features, action_features, cmd_features, refer_features), dim=1)
+        features = torch.cat((imu_features, action_features, cmd_features), dim=1)
         latent_obs = self.fc(features)
         
         return latent_obs

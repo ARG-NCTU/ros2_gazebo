@@ -458,17 +458,18 @@ class MMIPO(PPO):
 
         # Compute cumulative constraint costs J_C_k(π_i) over the entire buffer
         cost_rewards_buffer = self.rollout_buffer.cost_rewards.reshape(-1, self.num_constraints)
-        mean_cost_rewards = cost_rewards_buffer.mean(axis=0)  # Shape: [num_constraints]
-
-        # Compute J_C_k(π_i) = E[C_k(s,a,s')]/(1 - gamma)
-        J_C_k_pi_i = mean_cost_rewards / (1 - self.gamma)
+        J_C_k_pi_i = np.zeros(cost_rewards_buffer.shape[1])
+        rollout_num = cost_rewards_buffer.shape[0]
+        for i, costs in enumerate(cost_rewards_buffer):
+            J_C_k_pi_i += costs*(self.gamma**2)
+        J_C_k_pi_i /= rollout_num
 
         # Update dynamic constraint thresholds
         for k in range(self.num_constraints):
             self.dynamic_constraint_thresholds[k] = max(
-                self.initial_constraint_thresholds[k],
-                J_C_k_pi_i[k] + self.alpha * self.initial_constraint_thresholds[k]
-            )
+                    self.initial_constraint_thresholds[k],
+                    J_C_k_pi_i[k] + self.alpha * self.initial_constraint_thresholds[k]
+                )
 
         # Train for n_epochs
         for epoch in range(self.n_epochs):

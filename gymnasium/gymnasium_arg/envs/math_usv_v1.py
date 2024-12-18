@@ -22,7 +22,6 @@ class MATH_USV_V1(gym.Env):
         self.render_mode = render_mode
         self.info = {
             "hist_frame": hist_frame,
-            "latent_dim": 32,
             'maxstep': 4096,
             'dt': 1 / 50,
             'max_rew': 100.0,
@@ -51,12 +50,9 @@ class MATH_USV_V1(gym.Env):
 
         self.__action_shape = (4,)
         self.__obs_shape = {
-            'imu': (hist_frame, 9),
+            'imu': (hist_frame, 8),
             'action': (hist_frame, 4),
-            'latent': self.info['latent_dim'],
-            'cmd_vel': (2,),
-            # 'refer': (3,),
-            'refer': (0,),
+            'cmd_vel': (3,),
         }
 
         # Initialize cmd_vel and refer_pose as tensors
@@ -65,9 +61,17 @@ class MATH_USV_V1(gym.Env):
 
         self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=self.__action_shape, dtype=np.float32, seed=seed)
         self.observation_space = gym.spaces.Box(
-            low=-np.inf,
-            high=np.inf,
-            shape=(np.prod(self.__obs_shape['imu']) + np.prod(self.__obs_shape['action']) + np.prod(self.__obs_shape['cmd_vel']) + np.prod(self.__obs_shape['refer']),),
+            low=np.hstack((
+                    np.full((np.prod(self.__obs_shape['imu']), ), -np.inf), 
+                    np.full((np.prod(self.__obs_shape['action']), ), -1.0), 
+                    np.full((np.prod(self.__obs_shape['cmd_vel']), ), -1.0)
+                    )),
+            high=np.hstack((
+                    np.full((np.prod(self.__obs_shape['imu']), ), np.inf), 
+                    np.full((np.prod(self.__obs_shape['action']), ), 1.0), 
+                    np.full((np.prod(self.__obs_shape['cmd_vel']), ), 1.0)
+                    )),
+            shape=(np.prod(self.__obs_shape['imu']) + np.prod(self.__obs_shape['action']) + np.prod(self.__obs_shape['cmd_vel']),),
             dtype=np.float32,
             seed=seed
         )
@@ -77,7 +81,9 @@ class MATH_USV_V1(gym.Env):
 
         # World bounds
         self.world_size = np.array([800.0, 600.0])  # Width, Height
-
+        self.refer_pose[0] = self.world_size[0] / 2
+        self.refer_pose[1] = self.world_size[1] / 2
+        self.refer_pose[2] = (torch.rand(1, device=self.device) * 2 - 1) * np.pi
         # Pygame setup
         if self.render_mode == "human":
             pygame.init()
@@ -90,11 +96,16 @@ class MATH_USV_V1(gym.Env):
         Resets the environment to its initial state.
         """
         super().reset(seed=seed)
-
+        self.dp_cnt = 0
         # Reset state: [x, y, theta, vx, vy, omega]
+        d_pose = torch.rand(3, device=self.device)*2-1
+        d_pose[1] = torch.sqrt(1-d_pose[0]**2)
+        d_pose[2] = d_pose[2] * np.pi
+        d_pose[:2] = d_pose[:2] * 0.5
         self.state = torch.tensor(
             [self.world_size[0]/2, self.world_size[1]/2, 0.0, 0.0, 0.0, 0.0], dtype=torch.float32, device=self.device
         )  # Start in the center
+        self.state[:3] += d_pose
 
         # Reset IMU data
         self.imu_data = self._calculate_imu_data()
@@ -106,7 +117,8 @@ class MATH_USV_V1(gym.Env):
         pose = torch.cat([self.state[:2], torch.tensor([0.0], device=self.device), ori], dim=0)
         self.veh_obs['pose'] = pose.repeat(self.info['hist_frame'], 1).to(self.device)
         self.cmd_vel = torch.zeros(3, device=self.device)
-        self.refer_pose = torch.tensor([self.state[0], self.state[1], self.state[2]], device=self.device)
+        self.refer_pose[2] = (torch.rand(1, device=self.device) * 2 - 1) * np.pi
+        # self.refer_pose = torch.tensor([self.state[0], self.state[1], self.state[2]], device=self.device)
         self.action = torch.zeros(self.__action_shape, device=self.device)
         self.info['step_cnt'] = 0
 
@@ -147,72 +159,29 @@ class MATH_USV_V1(gym.Env):
         obs = self.get_observation()
 
         ## reward and constraints ##
-        k1 = 50 # Reward weight for following cmd_vel direction
+        k1 = 50 # Reward weight for navigating to center
         k2 = 50 # Reward weight for maintaining heading
         k3 = 10 # Reward weight for smooth action
+        k4 = 5 # Reward weight for reserving energy
 
-        # Replace operator and relu with tensor-compatible functions
-        operator = lambda x: torch.where(x >= 0, torch.tensor(1.0, device=self.device), torch.tensor(-1.0, device=self.device))
-        relu = lambda x: torch.clamp(x, min=0)
-
-        # Reward of following cmd_vel direction
-        ref_yaw = self.refer_pose[2]
-        refer_ori = self.quat_from_angle_z(ref_yaw)
-        refer_ori_tensor = torch.tensor(refer_ori, device=self.device, dtype=torch.float32)
-        # refer_pose = torch.cat([
-        #     self.refer_pose[:2],
-        #     torch.tensor([0.0], device=self.device),
-        #     refer_ori_tensor
-        # ])
-        # if self.cmd_vel[0] != 0 and self.cmd_vel[1] != 0:
-        #     refer_pose = torch.cat([
-        #         self.veh_obs['pose'][1][:3],
-        #         refer_ori_tensor
-        #     ])
-        refer_pose = torch.cat([
-            self.veh_obs['pose'][1][:3],
-            refer_ori_tensor
-        ])
-        local_pose_diff = self.relative_pose_tf(self.veh_obs['pose'][0], refer_pose)
-        local_pose_norm = torch.norm(local_pose_diff[:2], p=2)
-        cmd_dir = torch.atan2(self.cmd_vel[1], self.cmd_vel[0])
-        veh_dir = torch.atan2(local_pose_diff[1], local_pose_diff[0])
-
-        cmd_vel_norm = torch.norm(self.cmd_vel[:2], p=2)
-
-
-        if cmd_vel_norm == 0:
-            rew1 = k1*(1 - relu(local_pose_norm))
-        else:
-            if local_pose_norm <= 1e-2:
-                rew1 = k1 * (local_pose_norm - local_pose_norm)
-            else:
-                rew1 = k1 * torch.cos(veh_dir - cmd_dir)
-                theta = torch.cos(veh_dir - cmd_dir)
-                rew1 = k1 * theta - relu(-operator(theta) * local_pose_norm)
-
-        # Reward of thrust
-        # action_tensor = torch.tensor(self.action[:2], device=self.device, dtype=torch.float32)
-        # rew2 = 1 - 2 * torch.abs((torch.abs(action_tensor) - cmd_vel_norm))
-        # rew2 = k2 * torch.sum(rew2) / 2
+        # Reward of navigating to center
+        # rew1 = k1*torch.exp(-(torch.norm(self.refer_pose[:2]-self.veh_obs['pose'][0][:2], p=2)**2/0.25))
+        rew1 = k1*(1-(torch.norm(self.refer_pose[:2]-self.veh_obs['pose'][0][:2], p=2)))
 
         # Reward of maintaining heading
         veh_quat = self.veh_obs['pose'][0][3:7]
         ref_yaw = self.refer_pose[2]
-        rew2 = k2*torch.cos(self.yaw_from_quaternion(veh_quat- ref_yaw))
+        rew2 = k2*torch.cos(ref_yaw - self.yaw_from_quaternion(veh_quat))
         # Reward of smooth action
         rew3 = -k3 * torch.norm(self.veh_obs['action'][0] - self.veh_obs['action'][1], p=1) / self.__action_shape[0]
 
+        # Reward of reserving energy
+        rew4 = -k4 * torch.norm(self.veh_obs['action'][0][:2], p=1) / 2
         # Constraint
         const = []
-        # Constraint of heading
-        # veh_quat = self.veh_obs['pose'][0][3:7].cpu().numpy()
-        # veh_yaw = R.from_quat(veh_quat).as_euler('xyz', degrees=False)[2]
-        # ref_yaw = self.refer_pose[2].cpu().item()
-        # const_value = (1 - np.cos(veh_yaw - ref_yaw)) / 2
-        # const.append(const_value)
 
         # Constraint of thrust
+        cmd_vel_norm = torch.norm(self.cmd_vel[:2], p=2)
         action_tensor = torch.tensor(self.action[:2], device=self.device, dtype=torch.float32)
         cons1 = torch.sum(torch.abs((torch.abs(action_tensor) - cmd_vel_norm)))/2
 
@@ -222,15 +191,17 @@ class MATH_USV_V1(gym.Env):
         rew1 = rew1 / self.info['max_rew']
         rew2 = rew2 / self.info['max_rew']
         rew3 = rew3 / self.info['max_rew']
+        rew4 = rew4 / self.info['max_rew']
         # Convert rewards to scalars for logging and further processing
         rew1_value = rew1.item()
         rew2_value = rew2.item()
         rew3_value = rew3.item()
-        rew = rew1_value + rew2_value + rew3_value
+        rew4_value = rew4.item()
+        rew = rew1_value + rew2_value + rew3_value + rew4_value
 
         # Output formatting
         sgn_bool = lambda x: True if x >= 0 else False
-        output = "\rstep:{:4d}, cmd: [x:{}, y:{}, yaw:{}], action: [l_t:{}, r_t:{}, l_a:{}, r_a:{}], rews: [{}, {}, {}] const:[{}]".format(
+        output = "\rstep:{:4d}, cmd: [x:{}, y:{}, yaw:{}], action: [l_t:{}, r_t:{}, l_a:{}, r_a:{}], rews: [{}, {}, {}, {}] const:[{}]".format(
             self.info['step_cnt'],
             " {:4.2f}".format(self.cmd_vel[0].item()) if sgn_bool(self.cmd_vel[0].item()) else "{:4.2f}".format(self.cmd_vel[0].item()),
             " {:4.2f}".format(self.cmd_vel[1].item()) if sgn_bool(self.cmd_vel[1].item()) else "{:4.2f}".format(self.cmd_vel[1].item()),
@@ -242,25 +213,13 @@ class MATH_USV_V1(gym.Env):
             " {:4.2f}".format(rew1_value) if sgn_bool(rew1_value) else "{:4.2f}".format(rew1_value),
             " {:4.2f}".format(rew2_value) if sgn_bool(rew2_value) else "{:4.2f}".format(rew2_value),
             " {:4.2f}".format(rew3_value) if sgn_bool(rew3_value) else "{:4.2f}".format(rew3_value),
+            " {:4.2f}".format(rew4_value) if sgn_bool(rew4_value) else "{:4.2f}".format(rew4_value),
             " {:4.2f}".format(const[0]) if sgn_bool(const[0]) else "{:4.2f}".format(const[0]),
         )
         sys.stdout.write(output)
         sys.stdout.flush()
-
         # Update for termination
-        if rew <= -1.5:
-            termination = True
-
-        # Update cmd_vel and refer_pose every 1024 steps
-        if self.info['step_cnt'] % 1024 == 0:
-            x = random.uniform(-1, 1)
-            y = np.sqrt(1 - x ** 2) * random.uniform(-1, 1)
-            self.cmd_vel = torch.tensor([x, y, 0.0], device=self.device, dtype=torch.float32)
-            yaw = self.yaw_from_quaternion(self.veh_obs['pose'][0][3:7])
-            # yaw_quat = self.veh_obs['pose'][0][3:7].cpu().numpy()
-            # yaw = R.from_quat(yaw_quat).as_euler('xyz', degrees=False)[2]
-            # self.refer_pose = torch.cat([self.veh_obs['pose'][0][:2], torch.tensor([yaw], device=self.device, dtype=torch.float32)])
-            self.refer_pose = torch.tensor([self.state[0], self.state[1], yaw], device=self.device)
+        
         info['constraint_costs'] = np.array(const, dtype=np.float32)
 
         if self.info['step_cnt'] >= self.info['maxstep']:
@@ -268,6 +227,17 @@ class MATH_USV_V1(gym.Env):
 
         if self.render_mode == "human":
             self._render_pygame()
+
+        if rew1.item() <= -0.5:
+            termination = True
+
+        if rew >=0.9:
+            if self.dp_cnt >= 100:
+                termination = True
+            else:
+                self.dp_cnt += 1
+        else:
+            self.dp_cnt = 0
 
         # Return values
         return obs, rew, termination, truncation, info
@@ -284,41 +254,27 @@ class MATH_USV_V1(gym.Env):
 
         imu_obs = self.veh_obs['imu'].cpu().numpy()   # Convert to NumPy
         r, p, y = R.from_quat(imu_obs[:, :4]).as_euler('xyz', degrees=False).T
-        # print(np.array([r]))
-        # print(np.array([p]))
-        # print(np.array([y-self.refer_pose[2].item()]).shape)
-        imu_obs = np.hstack((np.array([r]).T, np.array([p]).T, np.array([y-self.refer_pose[2].item()]).T, imu_obs[:, 4:])) 
+        yaw = self.refer_pose[2].item()-y[0]
+        # yaw = {-np.pi~np.pi}
+        yaw = (yaw + np.pi) % (2 * np.pi) - np.pi
+        imu_obs = np.hstack((np.array([r]).T, np.array([p]).T, imu_obs[:, 4:])) 
         imu_obs = imu_obs.flatten()
         action_obs = self.veh_obs['action'].cpu().numpy().flatten()  # Convert to NumPy
 
-        # ref_yaw = self.refer_pose[2]
-        # refer_ori = self.quat_from_angle_z(self.refer_pose[2])
 
-        # Construct refer_pose as a tensor
-        # refer_pose = torch.cat([
-        #     self.refer_pose[:2],
-        #     torch.tensor([0.0], device=self.device, dtype=torch.float32),
-        #     refer_ori
-        # ])
-
-        # Compute local pose difference
-        # local_pose_diff = self.relative_pose_tf(self.veh_obs['pose'][0], refer_pose)
-        # local_pose_diff_np = local_pose_diff.cpu().numpy()  # Convert to NumPy for concatenation
-
-        # veh_yaw = R.from_quat([
-        #     veh_pose[3],
-        #     veh_pose[4],
-        #     veh_pose[5],
-        #     veh_pose[6]
-        # ]).as_euler('xyz', degrees=False)[2]
+        goal_pose = torch.concat([self.refer_pose[:2], torch.tensor([0.0], device=self.device), self.quat_from_angle_z(self.refer_pose[2])], dim=0)
+        goal_diff = self.relative_pose_tf(goal_pose, self.veh_obs['pose'][0])
+        ang_goal_diff = torch.atan2(goal_diff[1], goal_diff[0])
+        norm_goal_diff = torch.norm(goal_diff, p=2)
+        self.cmd_vel = torch.tensor([torch.cos(ang_goal_diff), torch.sin(ang_goal_diff), yaw], device=self.device, dtype=torch.float32)
+        if norm_goal_diff < 1:
+            self.cmd_vel[:2] = self.cmd_vel[:2]*norm_goal_diff 
 
         # Convert all parts to NumPy-compatible formats before concatenation
         obs = np.concatenate([
             imu_obs,
             action_obs,
-            self.cmd_vel.cpu().numpy()[:2],  # Convert cmd_vel to NumPy
-            # np.hstack((local_pose_diff_np[:2], np.array([veh_yaw - ref_yaw.cpu().item()]))),  # Ensure NumPy compatibility
-            # np.array([veh_yaw - ref_yaw.cpu().item()]),  # Ensure NumPy compatibility
+            self.cmd_vel.cpu().numpy(),  # Convert cmd_vel to NumPy
         ])
         return obs
 
@@ -522,7 +478,7 @@ class MATH_USV_V1(gym.Env):
 
 
 if __name__ == "__main__":
-    env = MATH_USV_V1(render_mode="human", device='cuda')
+    env = MATH_USV_V2(render_mode="human", device='cuda')
     obs = env.reset()
     done = False
     while not done:
