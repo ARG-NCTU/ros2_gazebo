@@ -532,12 +532,18 @@ class MMIPO(PPO):
                     cost_value_loss += F.mse_loss(cost_returns, cost_values_pred)
 
                 # Barrier function
-                avg_cost_advantages = rollout_data.cost_advantages.mean(dim=0)
+                avg_cost_advantages = np.zeros(self.num_constraints)
+                avg_cost_std = rollout_data.cost_advantages.std(dim=0)
+                avg_cost_mean = rollout_data.cost_advantages.mean(dim=0)
+                for i in range(rollout_data.cost_advantages.shape[0]):
+                    prob_value = gaussian_pdf(rollout_data.cost_advantages[i].cpu().numpy(), avg_cost_mean.item(), avg_cost_std.item())
+                    avg_cost_advantages += prob_value * rollout_data.cost_advantages[i].cpu().numpy()
+                avg_cost_advantages = th.as_tensor(avg_cost_advantages, dtype=th.float32, device=self.device)
+
                 J_C_k_pi_i_th = th.as_tensor(J_C_k_pi_i, dtype=th.float32, device=self.device)
 
                 barrier_terms = []
                 for i in range(self.num_constraints):
-                    # Replace cumulative_constraint_costs[i] with J_C_k_pi_i_th[i]
                     barrier_argument = self.dynamic_constraint_thresholds[i] - (
                         J_C_k_pi_i_th[i] + (1 / (1 - self.gamma)) * avg_cost_advantages[i]
                     )
