@@ -486,9 +486,6 @@ class MMIPO(PPO):
                 J_C_k_pi_i[k] + self.alpha * self.initial_constraint_thresholds[k]
             )
 
-        total_samples = self.n_steps * self.n_envs
-        self.logger.record("train/total_samples", total_samples)
-
         for epoch in range(self.n_epochs):
             approx_kl_divs = []
             # Sample batches
