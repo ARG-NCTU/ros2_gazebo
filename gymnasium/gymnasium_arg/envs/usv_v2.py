@@ -179,14 +179,11 @@ class USV_V2(gym.Env):
         sys.stdout.flush()
 
 
-        # if state['reward'][0] <= -0.5:
-        #     state['termination'] = True
+        if state['reward'][1] <= 0.2:
+            state['termination'] = True
 
         state['reward'] = state['reward'].sum()
         
-        if state['reward'] < -1.0:
-            state['termination'] = True
-
         if self.veh.info['step_cnt'] >= self.info['maxstep']:
             state['truncation'] = True
 
