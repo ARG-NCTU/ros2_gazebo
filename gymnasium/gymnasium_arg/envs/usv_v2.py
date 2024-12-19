@@ -136,7 +136,7 @@ class USV_V2(gym.Env):
         y = np.sqrt(1 - x**2)*random.uniform(-1, 1)
         yaw = random.uniform(-np.pi, np.pi)
         self.refer_pose = np.array([x, y, yaw], dtype=np.float32)
-        self.refer_pose[:2] = self.refer_pose[:2]*random.uniform(0.5, 5)
+        self.refer_pose[:2] = self.refer_pose[:2]*random.uniform(0.8, 4)
         # self.cmd_vel = np.array([0.0, 0.0, 0.0])
         self.veh.reset()
         self.info['last_clock_time'] = None
@@ -183,6 +183,9 @@ class USV_V2(gym.Env):
         #     state['termination'] = True
 
         state['reward'] = state['reward'].sum()
+        
+        if state['reward'] < -1.0:
+            state['termination'] = True
 
         if self.veh.info['step_cnt'] >= self.info['maxstep']:
             state['truncation'] = True
