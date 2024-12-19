@@ -180,7 +180,7 @@ class USV_V2(gym.Env):
         sys.stdout.flush()
 
 
-        if state['reward'][1] <= 0.2:
+        if state['reward'][1] <= -0.3:
             state['termination'] = True
 
         state['reward'] = state['reward'].sum()
