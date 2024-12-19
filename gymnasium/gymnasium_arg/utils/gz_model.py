@@ -120,7 +120,7 @@ class GZ_MODEL(Node):
 
     def reset(self):
         # self.delete_entity()
-        self.setup()
+        # self.setup()
         self.move_pose(self.init_pose)
         self.get_logger().info(f'GZ model: {self.name} reset')  # Corrected: reseted -> reset
 
