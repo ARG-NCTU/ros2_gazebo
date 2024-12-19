@@ -133,7 +133,7 @@ class USV_V2(gym.Env):
         self.__pause()
         self.dp_cnt = 0
         x = random.uniform(-1, 1)
-        y = np.sqrt(1 - x**2)*random.uniform(-1, 1)
+        y = np.sqrt(1 - x**2)*random.uniform(-5, 5)
         yaw = random.uniform(-np.pi, np.pi)
         self.refer_pose = np.array([x, y, yaw], dtype=np.float32)
         self.refer_pose[:2] = self.refer_pose[:2]*random.uniform(0.5, 2.0)
@@ -179,8 +179,8 @@ class USV_V2(gym.Env):
         sys.stdout.flush()
 
 
-        if state['reward'][0] <= -0.5:
-            state['termination'] = True
+        # if state['reward'][0] <= -0.5:
+        #     state['termination'] = True
 
         state['reward'] = state['reward'].sum()
 
@@ -254,7 +254,8 @@ class USV_V2(gym.Env):
         # Reward of navigating to center
         # rew1 = k1*torch.exp(-(np.linalg.norm(self.refer_pose[:2]-self.veh.obs['pose'][0][:2], p=2)**2/0.25))
         rew1 = k1*(1-(np.linalg.norm(self.refer_pose[:2]-self.veh.obs['pose'][0][:2], ord=2)))
-
+        if rew1 <= -50:
+            rew1 = -50
         # Reward of maintaining heading
         veh_quat = self.veh.obs['pose'][0][3:7]
         ref_yaw = self.refer_pose[2]
