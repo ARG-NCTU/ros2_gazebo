@@ -133,10 +133,10 @@ class USV_V2(gym.Env):
         self.__pause()
         self.dp_cnt = 0
         x = random.uniform(-1, 1)
-        y = np.sqrt(1 - x**2)*random.uniform(-5, 5)
+        y = np.sqrt(1 - x**2)*random.uniform(-1, 1)
         yaw = random.uniform(-np.pi, np.pi)
         self.refer_pose = np.array([x, y, yaw], dtype=np.float32)
-        self.refer_pose[:2] = self.refer_pose[:2]*random.uniform(0.5, 2.0)
+        self.refer_pose[:2] = self.refer_pose[:2]*random.uniform(0.5, 5)
         # self.cmd_vel = np.array([0.0, 0.0, 0.0])
         self.veh.reset()
         self.info['last_clock_time'] = None
