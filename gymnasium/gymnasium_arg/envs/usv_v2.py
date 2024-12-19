@@ -130,6 +130,7 @@ class USV_V2(gym.Env):
     
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
+        self.__reset_world()
         self.__pause()
         self.dp_cnt = 0
         x = random.uniform(-1, 1)
