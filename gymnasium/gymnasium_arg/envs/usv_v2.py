@@ -134,7 +134,7 @@ class USV_V2(gym.Env):
         self.dp_cnt = 0
         x = random.uniform(-1, 1)
         y = np.sqrt(1 - x**2)*random.uniform(-1, 1)
-        yaw = random.uniform(-np.pi, np.pi)
+        yaw = random.uniform(-np.pi/4, np.pi/4)
         self.refer_pose = np.array([x, y, yaw], dtype=np.float32)
         self.refer_pose[:2] = self.refer_pose[:2]*random.uniform(0.8, 4)
         # self.cmd_vel = np.array([0.0, 0.0, 0.0])
