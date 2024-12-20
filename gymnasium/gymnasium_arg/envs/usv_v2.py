@@ -255,9 +255,9 @@ class USV_V2(gym.Env):
         now_dis = np.linalg.norm(self.refer_pose[:2]-self.veh.obs['pose'][0][:2], ord=2)
         last_dis = np.linalg.norm(self.refer_pose[:2]-self.veh.obs['pose'][1][:2], ord=2)
         rew1 = k1*(1-now_dis)
+        rew1 += last_dis-now_dis*k1/4
         if rew1 <= -50:
             rew1 = -50
-        rew1 += last_dis-now_dis*k1
         
         # Reward of maintaining heading
         veh_quat = self.veh.obs['pose'][0][3:7]
