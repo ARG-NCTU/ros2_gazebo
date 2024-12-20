@@ -257,7 +257,7 @@ class USV_V2(gym.Env):
         rew1 = k1*(1-now_dis)
         if rew1 <= -50:
             rew1 = -50
-        rew1 += last_dis-now_dis*3/4
+        rew1 += last_dis-now_dis*k1
         
         # Reward of maintaining heading
         veh_quat = self.veh.obs['pose'][0][3:7]
