@@ -417,8 +417,9 @@ class MATH_USV_V1(gym.Env):
 
         # Normalize thrust values based on the input vector norm
         input_norm = torch.linalg.norm(torch.tensor([F_x, F_y], device=self.device), ord=2)
-        if input_norm > 1:
-            raise ValueError("Input velocities must be normalized such that norm2(x, y) <= 1.")
+        input_norm = torch.clamp(input_norm, -1.0, 1.0)
+        # if input_norm > 1:
+        #     raise ValueError("Input velocities must be normalized such that norm2(x, y) <= 1.")
 
         max_T = torch.max(torch.abs(T_L), torch.abs(T_R))
         if max_T > 0:
