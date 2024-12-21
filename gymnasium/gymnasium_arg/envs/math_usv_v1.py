@@ -138,7 +138,7 @@ class MATH_USV_V1(gym.Env):
         thrust_array = torch.clamp(base_action[:2]+2*torch.tensor(action[:2], device=self.device), -1.0, 1.0)
         ang_array = torch.clamp(base_action[2:]+torch.tensor(action[2:], device=self.device)*torch.pi/2, -torch.pi/4, torch.pi/4)
         mag_left, mag_right = thrust_array[0], thrust_array[1]
-        angle_left, angle_right = torch.sin(ang_array[2]), torch.sin(ang_array[3])
+        angle_left, angle_right = torch.sin(ang_array[0]), torch.sin(ang_array[1])
 
         # Update state
         self.state, self.imu_data = self._update_dynamics(
