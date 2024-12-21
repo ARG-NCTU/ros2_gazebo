@@ -133,10 +133,12 @@ class MATH_USV_V1(gym.Env):
         """
         self.info['step_cnt'] += 1
         self.action = action
-
+        base_action = self._calculate_motor_control(self.cmd_vel[0], self.cmd_vel[1])
         # Extract action components
-        mag_left, mag_right = action[0], action[1]
-        angle_left, angle_right = action[2], action[3]
+        thrust_array = torch.clamp(base_action[:2]+2*action[:2], -1.0, 1.0)
+        ang_array = torch.clamp(base_action[2:]+action[2:]*torch.pi/2, -torch.pi/4, torch.pi/4)
+        mag_left, mag_right = thrust_array[0], thrust_array[1]
+        angle_left, angle_right = torch.sin(ang_array[2]), torch.sin(ang_array[3])
 
         # Update state
         self.state, self.imu_data = self._update_dynamics(
@@ -161,8 +163,8 @@ class MATH_USV_V1(gym.Env):
         ## reward and constraints ##
         k1 = 50 # Reward weight for navigating to center
         k2 = 50 # Reward weight for maintaining heading
-        k3 = 10 # Reward weight for smooth action
-        k4 = 5 # Reward weight for reserving energy
+        k3 = 20 # Reward weight for smooth action
+        k4 = 20 # Reward weight for reserving energy
 
         # Reward of navigating to center
         # rew1 = k1*torch.exp(-(torch.norm(self.refer_pose[:2]-self.veh_obs['pose'][0][:2], p=2)**2/0.25))
@@ -361,6 +363,71 @@ class MATH_USV_V1(gym.Env):
         imu_data = torch.tensor([orientation[0], orientation[1], orientation[2], orientation[3], ax, ay, -9.8, 0, 0, omega_new], dtype=torch.float32, device=self.device)
         return torch.tensor([x_new, y_new, theta_new, vx_new, vy_new, omega_new], dtype=torch.float32, device=self.device), imu_data
 
+
+    def _calculate_motor_control(self, x, y):
+        """
+        Calculate thrust and yaw angles for left and right motors to achieve the desired velocity (x, y),
+        with normalized inputs and outputs.
+
+        Parameters:
+            x (float): Desired velocity in x-direction (normalized such that norm2(x, y) <= 1).
+            y (float): Desired velocity in y-direction (normalized such that norm2(x, y) <= 1).
+
+        Returns:
+            tuple: (T_L, theta_L, T_R, theta_R)
+                T_L, T_R: Normalized thrust for left and right motors.
+                theta_L, theta_R: Yaw angles for left and right motors (in degrees).
+        """
+        # Motor positions relative to the center of mass
+        x_L = -self.veh_body['length'] / 2
+        x_R = -self.veh_body['length'] / 2
+        y_L = self.veh_body['width'] / 2
+        y_R = -y_L
+
+        # Convert inputs to PyTorch tensors
+        F_x = torch.tensor(x, device=self.device, dtype=torch.float32)
+        F_y = torch.tensor(y, device=self.device, dtype=torch.float32)
+
+        # Initialize results
+        T_L = torch.tensor(0.0, device=self.device)
+        T_R = torch.tensor(0.0, device=self.device)
+        theta_L = torch.tensor(0.0, device=self.device)
+        theta_R = torch.tensor(0.0, device=self.device)
+
+        # If there's no force to generate, return zero thrust and angles
+        if F_x == 0 and F_y == 0:
+            return torch.tensor([T_L.item(), T_R.item(), theta_L.item(), theta_R.item()], device=self.device)
+
+        # Calculate the required yaw angles
+        theta_L = torch.atan2(F_y, F_x)
+        theta_R = -theta_L  # Opposite direction for lateral force balancing
+
+        # Ensure angles are within the physical limits of [-45, 45] degrees
+        angle_limit = torch.tensor(torch.pi / 4, device=self.device)
+        theta_L = torch.clamp(theta_L, -angle_limit, angle_limit)
+        theta_R = torch.clamp(theta_R, -angle_limit, angle_limit)
+
+        # Calculate the thrust values
+        denominator = (y_R * x_L - y_L * x_R)
+        if denominator == 0:
+            raise ValueError("Motor positions cannot produce torque balance.")
+
+        T_L = (F_y * x_R - F_x * y_R) / denominator
+        T_R = (F_x * y_L - F_y * x_L) / denominator
+
+        # Normalize thrust values based on the input vector norm
+        input_norm = torch.linalg.norm(torch.tensor([F_x, F_y], device=self.device), ord=2)
+        if input_norm > 1:
+            raise ValueError("Input velocities must be normalized such that norm2(x, y) <= 1.")
+
+        max_T = torch.max(torch.abs(T_L), torch.abs(T_R))
+        if max_T > 0:
+            T_L = (T_L / max_T) * input_norm
+            T_R = (T_R / max_T) * input_norm
+
+        return torch.tensor([T_L.item(), T_R.item(), theta_L.item(), theta_R.item()], device=self.device)
+
+    
     def _calculate_imu_data(self):
         """
         Calculates the initial IMU data from the initial state.
@@ -478,7 +545,7 @@ class MATH_USV_V1(gym.Env):
 
 
 if __name__ == "__main__":
-    env = MATH_USV_V2(render_mode="human", device='cuda')
+    env = MATH_USV_V1(render_mode="human", device='cuda')
     obs = env.reset()
     done = False
     while not done:
