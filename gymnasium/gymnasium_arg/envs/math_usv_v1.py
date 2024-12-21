@@ -135,8 +135,8 @@ class MATH_USV_V1(gym.Env):
         self.action = action
         base_action = self._calculate_motor_control(self.cmd_vel[0], self.cmd_vel[1])
         # Extract action components
-        thrust_array = torch.clamp(base_action[:2]+2*action[:2], -1.0, 1.0)
-        ang_array = torch.clamp(base_action[2:]+action[2:]*torch.pi/2, -torch.pi/4, torch.pi/4)
+        thrust_array = torch.clamp(base_action[:2]+2*torch.tensor(action[:2], device=self.device), -1.0, 1.0)
+        ang_array = torch.clamp(base_action[2:]+torch.tensor(action[2:], device=self.device)*torch.pi/2, -torch.pi/4, torch.pi/4)
         mag_left, mag_right = thrust_array[0], thrust_array[1]
         angle_left, angle_right = torch.sin(ang_array[2]), torch.sin(ang_array[3])
 
