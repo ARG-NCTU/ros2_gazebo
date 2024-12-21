@@ -132,19 +132,20 @@ class MATH_USV_V1(gym.Env):
         Executes one time step within the environment.
         """
         self.info['step_cnt'] += 1
-        self.action = action
+        # # Extract action components
+        
         base_action = self._calculate_motor_control(self.cmd_vel[0], self.cmd_vel[1])
-        # Extract action components
-        thrust_array = torch.clamp(base_action[:2]+2*torch.tensor(action[:2], device=self.device), -1.0, 1.0)
-        ang_array = torch.clamp(base_action[2:]+torch.tensor(action[2:], device=self.device)*torch.pi/2, -torch.pi/4, torch.pi/4)
-        mag_left, mag_right = thrust_array[0], thrust_array[1]
-        angle_left, angle_right = torch.sin(ang_array[0]), torch.sin(ang_array[1])
+        action = np.clip(action*2+base_action.cpu().numpy(), -1, 1)
+        self.action = action
+
+        # angle_left, angle_right = torch.sin(ang_array[0]), torch.sin(ang_array[1])
+        mag_left, mag_right = action[0], action[1]
+        angle_left, angle_right = np.sin(action[2]*np.pi/4), np.sin(action[3]*np.pi/4)
 
         # Update state
         self.state, self.imu_data = self._update_dynamics(
             self.state, mag_left, mag_right, angle_left, angle_right, self.info['dt']
         )
-
         # Update observation buffers using torch.roll
         self.veh_obs['imu'] = torch.roll(self.veh_obs['imu'], shifts=1, dims=0)
         self.veh_obs['imu'][0] = self.imu_data
@@ -268,7 +269,7 @@ class MATH_USV_V1(gym.Env):
         goal_diff = self.relative_pose_tf(goal_pose, self.veh_obs['pose'][0])
         ang_goal_diff = torch.atan2(goal_diff[1], goal_diff[0])
         norm_goal_diff = torch.norm(goal_diff, p=2)
-        self.cmd_vel = torch.tensor([torch.cos(ang_goal_diff), torch.sin(ang_goal_diff), yaw], device=self.device, dtype=torch.float32)
+        self.cmd_vel = torch.tensor([torch.cos(ang_goal_diff), torch.sin(ang_goal_diff), yaw/torch.pi], device=self.device, dtype=torch.float32)
         if norm_goal_diff < 1:
             self.cmd_vel[:2] = self.cmd_vel[:2]*norm_goal_diff 
 
@@ -406,7 +407,8 @@ class MATH_USV_V1(gym.Env):
         angle_limit = torch.tensor(torch.pi / 4, device=self.device)
         theta_L = torch.clamp(theta_L, -angle_limit, angle_limit)
         theta_R = torch.clamp(theta_R, -angle_limit, angle_limit)
-
+        theta_L = theta_L / angle_limit
+        theta_R = theta_R / angle_limit
         # Calculate the thrust values
         denominator = (y_R * x_L - y_L * x_R)
         if denominator == 0:
