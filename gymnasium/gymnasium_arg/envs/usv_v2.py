@@ -320,10 +320,11 @@ class USV_V2(gym.Env):
         theta_R = -theta_L  # Opposite direction for lateral force balancing
 
         # Ensure angles are within the physical limits of [-45, 45] degrees
-        theta_L = torch.clamp(theta_L, -angle_limit, angle_limit)
-        theta_L = torch.interp(theta_L, torch.tensor([-angle_limit, angle_limit]), torch.tensor([-1, 1]))
-        theta_R = torch.clamp(theta_R, -angle_limit, angle_limit)
-        theta_R = torch.interp(theta_R, torch.tensor([-angle_limit, angle_limit]), torch.tensor([-1, 1]))
+        angle_limit = np.pi / 4
+        theta_L = np.clip(theta_L, -angle_limit, angle_limit)
+        theta_R = np.clip(theta_R, -angle_limit, angle_limit)
+        theta_L = np.interp(theta_L, [-angle_limit, angle_limit], [-1, 1])
+        theta_R = np.interp(theta_R, [-angle_limit, angle_limit], [-1, 1])
 
         # Calculate the thrust values
         denominator = (y_R * x_L - y_L * x_R)
