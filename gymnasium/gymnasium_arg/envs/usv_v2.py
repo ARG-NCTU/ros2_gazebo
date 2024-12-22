@@ -252,8 +252,8 @@ class USV_V2(gym.Env):
         ## reward and constraints ##
         k1 = 50 # Reward weight for navigating to center
         k2 = 50 # Reward weight for maintaining heading
-        k3 = 10 # Reward weight for smooth action
-        k4 = 5 # Reward weight for reserving energy
+        k3 = 20 # Reward weight for smooth action
+        k4 = 20 # Reward weight for reserving energy
 
         # Reward of navigating to center
         # rew1 = k1*torch.exp(-(np.linalg.norm(self.refer_pose[:2]-self.veh.obs['pose'][0][:2], p=2)**2/0.25))
