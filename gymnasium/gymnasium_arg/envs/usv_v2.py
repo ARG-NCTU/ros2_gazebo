@@ -136,7 +136,7 @@ class USV_V2(gym.Env):
         # self.last_goal_diff = 0
         x = random.uniform(-1, 1)
         y = np.sqrt(1 - x**2)*random.uniform(-1, 1)
-        yaw = random.uniform(-np.pi/4, np.pi/4)
+        yaw = random.uniform(-np.pi/2, np.pi/2)
         self.refer_pose = np.array([x, y, yaw], dtype=np.float32)
         self.refer_pose[:2] = self.refer_pose[:2]*random.uniform(0.8, 2)
         # self.cmd_vel = np.array([0.0, 0.0, 0.0])
@@ -152,7 +152,7 @@ class USV_V2(gym.Env):
         self.info['total_step'] += 1
 
         base_action = self.calculate_motor_control(self.cmd_vel[0], self.cmd_vel[1])
-        action = np.clip(action*2 + base_action, -1, 1)
+        action = np.clip(action + base_action, -1, 1)
         # action = base_action
         self.action = action
         self.veh.step(action)
@@ -185,7 +185,9 @@ class USV_V2(gym.Env):
         sys.stdout.write(output)
         sys.stdout.flush()
 
-
+        if state['reward'][1] <= -0.3:
+            state['termination'] = True
+            
         state['reward'] = state['reward'].sum()
         
         if self.veh.info['step_cnt'] >= self.info['maxstep']:
