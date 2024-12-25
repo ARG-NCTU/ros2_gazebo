@@ -318,8 +318,8 @@ class USV_V2(gym.Env):
             return np.array([T_L, T_R, theta_L, theta_R])
 
         # Calculate the required yaw angles
-        theta_L = np.arctan2(F_y, F_x)
-        theta_R = -theta_L  # Opposite direction for lateral force balancing
+        theta_L = -np.arctan2(F_y, F_x)
+        theta_R = theta_L  # Opposite direction for lateral force balancing
 
         # Ensure angles are within the physical limits of [-45, 45] degrees
         angle_limit = np.pi / 4

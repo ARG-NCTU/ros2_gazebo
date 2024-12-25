@@ -400,8 +400,8 @@ class MATH_USV_V1(gym.Env):
             return torch.tensor([T_L.item(), T_R.item(), theta_L.item(), theta_R.item()], device=self.device)
 
         # Calculate the required yaw angles
-        theta_L = torch.atan2(F_y, F_x)
-        theta_R = -theta_L  # Opposite direction for lateral force balancing
+        theta_L = -torch.atan2(F_y, F_x)
+        theta_R = theta_L  # Opposite direction for lateral force balancing
 
         # Ensure angles are within the physical limits of [-45, 45] degrees
         angle_limit = torch.tensor(torch.pi / 4, device=self.device)
