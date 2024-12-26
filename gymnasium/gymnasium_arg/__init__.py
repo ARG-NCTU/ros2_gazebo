@@ -42,3 +42,9 @@ register(
     entry_point="gymnasium_arg.envs:MATH_USV_V1",
     max_episode_steps=4096,
 )
+
+register(
+    id="lunarlander-v3",
+    entry_point="gymnasium_arg.envs:LunarLander",
+    max_episode_steps=4096,
+)
