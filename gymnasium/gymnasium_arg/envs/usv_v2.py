@@ -103,7 +103,7 @@ class USV_V2(gym.Env):
         self.info['maxstep'] = 4096
         self.__action_shape = (4, )
         self.__obs_shape = {
-            'imu': (hist_frame, 10),
+            'imu': (hist_frame, 8),
             'action': (hist_frame, 4),
             'cmd_vel': (3, ),
         }
@@ -130,13 +130,15 @@ class USV_V2(gym.Env):
     
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
+        # self.__reset_world()
         self.__pause()
         self.dp_cnt = 0
+        # self.last_goal_diff = 0
         x = random.uniform(-1, 1)
         y = np.sqrt(1 - x**2)*random.uniform(-1, 1)
-        yaw = random.uniform(-np.pi, np.pi)
+        yaw = random.uniform(-np.pi/2, np.pi/2)
         self.refer_pose = np.array([x, y, yaw], dtype=np.float32)
-        self.refer_pose = self.refer_pose[:2]*random.uniform(0.5, 2.0)
+        self.refer_pose[:2] = self.refer_pose[:2]*random.uniform(0.8, 2)
         # self.cmd_vel = np.array([0.0, 0.0, 0.0])
         self.veh.reset()
         self.info['last_clock_time'] = None
@@ -148,9 +150,14 @@ class USV_V2(gym.Env):
         self.__unpause()
         self.__clock_sync()
         self.info['total_step'] += 1
-        self.action = action
 
+        base_action = self.calculate_motor_control(self.cmd_vel[0], self.cmd_vel[1])
+        action = np.clip(action + base_action, -1, 1)
+        # action = base_action
+        self.action = action
         self.veh.step(action)
+
+
 
         state = {
             'obs': self.get_observation(),  # Using latent representation as the observation
@@ -178,12 +185,11 @@ class USV_V2(gym.Env):
         sys.stdout.write(output)
         sys.stdout.flush()
 
-
-        if state['reward'][0] <= -0.5:
+        if state['reward'][1] <= -0.3:
             state['termination'] = True
-
+            
         state['reward'] = state['reward'].sum()
-
+        
         if self.veh.info['step_cnt'] >= self.info['maxstep']:
             state['truncation'] = True
 
@@ -232,7 +238,7 @@ class USV_V2(gym.Env):
         goal_diff = relative_pose_tf(goal_pose, self.veh.obs['pose'][0])
         ang_goal_diff = np.arctan2(goal_diff[1], goal_diff[0])
         norm_goal_diff = np.linalg.norm(goal_diff[:2], ord=2)
-        self.cmd_vel = np.array([np.cos(ang_goal_diff), np.sin(ang_goal_diff), yaw], dtype=np.float32)
+        self.cmd_vel = np.array([np.cos(ang_goal_diff), np.sin(ang_goal_diff), yaw/np.pi], dtype=np.float32)
         if norm_goal_diff < 1:
             self.cmd_vel[:2] = self.cmd_vel[:2]*norm_goal_diff
 
@@ -248,12 +254,17 @@ class USV_V2(gym.Env):
         ## reward and constraints ##
         k1 = 50 # Reward weight for navigating to center
         k2 = 50 # Reward weight for maintaining heading
-        k3 = 10 # Reward weight for smooth action
-        k4 = 5 # Reward weight for reserving energy
+        k3 = 20 # Reward weight for smooth action
+        k4 = 20 # Reward weight for reserving energy
 
         # Reward of navigating to center
         # rew1 = k1*torch.exp(-(np.linalg.norm(self.refer_pose[:2]-self.veh.obs['pose'][0][:2], p=2)**2/0.25))
-        rew1 = k1*(1-(np.linalg.norm(self.refer_pose[:2]-self.veh.obs['pose'][0][:2], ord=2)))
+        now_dis = np.linalg.norm(self.refer_pose[:2]-self.veh.obs['pose'][0][:2], ord=2)
+        last_dis = np.linalg.norm(self.refer_pose[:2]-self.veh.obs['pose'][1][:2], ord=2)
+        rew1 = k1*(1-now_dis)
+        if rew1 <= -50:
+            rew1 = -50
+        rew1 += (last_dis-now_dis)*k1
 
         # Reward of maintaining heading
         veh_quat = self.veh.obs['pose'][0][3:7]
@@ -268,12 +279,71 @@ class USV_V2(gym.Env):
         const = []
 
         # Constraint of thrust
-        cmd_vel_norm = np.linalg.norm(self.cmd_vel[:2], p=2)
+        cmd_vel_norm = np.linalg.norm(self.cmd_vel[:2], ord=2)
         cons1 = np.sum(abs((abs(self.action[:2]) - cmd_vel_norm)))/2
 
         const.append(cons1)
 
         return np.array([rew1, rew2, rew3, rew4])/self.info['max_rew'], const
+    
+
+    def calculate_motor_control(self, x, y):
+        """
+        Calculate thrust and yaw angles for left and right motors to achieve the desired velocity (x, y),
+        with normalized inputs and outputs.
+
+        Parameters:
+            x (float): Desired velocity in x-direction (normalized such that norm2(x, y) <= 1).
+            y (float): Desired velocity in y-direction (normalized such that norm2(x, y) <= 1).
+            max_thrust (float): Maximum thrust per motor.
+            x_L, y_L (float): Position of the left motor relative to the center of mass.
+            x_R, y_R (float): Position of the right motor relative to the center of mass.
+
+        Returns:
+            tuple: (T_L, theta_L, T_R, theta_R)
+                T_L, T_R: Normalized thrust for left and right motors.
+                theta_L, theta_R: Yaw angles for left and right motors (in degrees).
+        """
+        # Desired net force vector
+        F_x = x
+        F_y = y
+        x_L = x_R = -3.96/2
+        y_L, y_R = 1.22, -1.22
+        # Initialize the result variables
+        T_L, T_R = 0, 0
+        theta_L, theta_R = 0, 0
+
+        # If there's no force to generate, return zero thrust and angles
+        if F_x == 0 and F_y == 0:
+            return np.array([T_L, T_R, theta_L, theta_R])
+
+        # Calculate the required yaw angles
+        theta_L = -np.arctan2(F_y, F_x)
+        theta_R = theta_L  # Opposite direction for lateral force balancing
+
+        # Ensure angles are within the physical limits of [-45, 45] degrees
+        angle_limit = np.pi / 4
+        theta_L = np.clip(theta_L, -angle_limit, angle_limit)
+        theta_R = np.clip(theta_R, -angle_limit, angle_limit)
+        theta_L = np.interp(theta_L, [-angle_limit, angle_limit], [-1, 1])
+        theta_R = np.interp(theta_R, [-angle_limit, angle_limit], [-1, 1])
+
+        # Calculate the thrust values
+        denominator = (y_R * x_L - y_L * x_R)
+
+        T_L = (F_y * x_R - F_x * y_R) / denominator
+        T_R = (F_x * y_L - F_y * x_L) / denominator
+
+        # Normalize thrust values based on the input vector norm
+        input_norm = np.linalg.norm([F_x, F_y])
+        input_norm = min(input_norm, 1)  # Clip norm to 1
+
+        max_T = max(abs(T_L), abs(T_R))
+        if max_T > 0:
+            T_L = (T_L / max_T) * input_norm
+            T_R = (T_R / max_T) * input_norm
+
+        return np.array([T_L, T_R, theta_L, theta_R])
     
     def get_termination(self):
         return self.veh.obs['termination']

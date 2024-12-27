@@ -505,11 +505,17 @@ class MIPO(PPO):
         cost_value_losses = []
 
         def gaussian_pdf(x, mean, std_dev):
-            # Compute the probability density of x under a normal distribution N(mean, std_dev^2)
-            # Add a small epsilon to std_dev to avoid division by zero if std_dev is extremely small.
-            std_dev = max(std_dev, 1e-8)
-            coefficient = 1.0 / (np.sqrt(2 * np.pi) * std_dev)
-            exponent = np.exp(-((x - mean) ** 2) / (2 * std_dev ** 2))
+            """
+            Compute the probability density of x under a normal distribution N(mean, std_dev^2) using PyTorch.
+            Add a small epsilon to std_dev to avoid division by zero if std_dev is extremely small.
+            """
+            epsilon = 1e-8
+            # Ensure std_dev is a tensor and avoid division by zero
+            std_dev = th.maximum(std_dev, th.tensor(epsilon, device=self.device))
+            # Compute the coefficient
+            coefficient = 1.0 / (th.sqrt(2 * th.tensor(th.pi, device=self.device)) * std_dev)
+            # Compute the exponent
+            exponent = th.exp(-((x - mean) ** 2) / (2 * std_dev ** 2))
             return coefficient * exponent
 
         # Reshape cost_rewards to (T, num_constraints) where T = buffer_size * n_envs
@@ -529,9 +535,13 @@ class MIPO(PPO):
             weight_total = 0.0
             for t in range(T):
                 # Compute probability value for the observed cost at time t
-                prob_value = gaussian_pdf(cost_rewards_buffer[t, k], costs_mean[k], costs_std[k])
+                prob_value = gaussian_pdf(
+                    th.tensor(cost_rewards_buffer[t, k], device=self.device),
+                    th.tensor(costs_mean[k], device=self.device), 
+                    th.tensor(costs_std[k], device=self.device)
+                    )
                 # Discounted, probability-weighted cost
-                discounted_weighted_cost = (self.gamma ** t) * cost_rewards_buffer[t, k] * prob_value
+                discounted_weighted_cost = (self.gamma ** t) * cost_rewards_buffer[t, k] * prob_value.item()
                 weighted_sum += discounted_weighted_cost
                 weight_total += (self.gamma ** t) * prob_value
 
@@ -548,9 +558,6 @@ class MIPO(PPO):
                 self.initial_constraint_thresholds[k],
                 J_C_k_pi_i[k] + self.alpha * self.initial_constraint_thresholds[k]
             )
-
-        total_samples = self.n_steps * self.num_envs
-        self.logger.record("train/total_samples", total_samples)
 
         for epoch in range(self.n_epochs):
             approx_kl_divs = []
@@ -591,13 +598,18 @@ class MIPO(PPO):
                     cost_value_loss += F.mse_loss(cost_returns, cost_values_pred)
 
                 # Barrier function
-                avg_cost_advantages = np.zeros(self.num_constraints)
+                avg_cost_advantages = th.zeros(self.num_constraints, device=self.device)
                 avg_cost_std = rollout_data.cost_advantages.std(dim=0)
                 avg_cost_mean = rollout_data.cost_advantages.mean(dim=0)
+
                 for i in range(rollout_data.cost_advantages.shape[0]):
-                    prob_value = gaussian_pdf(rollout_data.cost_advantages[i].cpu().numpy(), avg_cost_mean.item(), avg_cost_std.item())
-                    avg_cost_advantages += prob_value * rollout_data.cost_advantages[i].cpu().numpy()
-                avg_cost_advantages = th.as_tensor(avg_cost_advantages, dtype=th.float32, device=self.device)
+                    for j in range(rollout_data.cost_advantages.shape[1]):
+                        prob_value = gaussian_pdf(
+                            rollout_data.cost_advantages[i,j],
+                            avg_cost_mean[j],
+                            avg_cost_std[j]
+                        )
+                        avg_cost_advantages[j] += prob_value * th.tensor(rollout_data.cost_advantages[i,j], device=self.device)
 
                 J_C_k_pi_i_th = th.as_tensor(J_C_k_pi_i, dtype=th.float32, device=self.device)
 
@@ -654,6 +666,7 @@ class MIPO(PPO):
             self.logger.record("train/learning_rate", current_lr)
             for i in range(self.num_constraints):
                 self.logger.record(f"train/dynamic_threshold_{i}", self.dynamic_constraint_thresholds[i])
+                self.logger.record(f"train/mean_cost_{i}", costs_mean[i].item())
 
     # @classmethod
     # def load(cls, path, env=None, **kwargs):

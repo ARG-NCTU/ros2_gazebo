@@ -1079,10 +1079,10 @@
         <joint_name>left_chasis_engine_joint</joint_name>
         <use_velocity_commands>true</use_velocity_commands>
         <topic>/wamv_v3/joint/left/thruster/cmd_pos</topic>
-        <position_p_gain>100.0</position_p_gain> <!-- Proportional gain -->
-        <position_i_gain>0.01</position_i_gain>   <!-- Integral gain -->
-        <position_d_gain>10.0</position_d_gain>  <!-- Derivative gain -->
-        <max_effort>10.0</max_effort>             <!-- Effort limit -->
+        <position_p_gain>500.0</position_p_gain> <!-- Proportional gain -->
+        <position_i_gain>0.0</position_i_gain>   <!-- Integral gain -->
+        <position_d_gain>20.0</position_d_gain>  <!-- Derivative gain -->
+        <max_effort>50.0</max_effort>             <!-- Effort limit -->
     </plugin>
 
     <!-- <plugin
@@ -1115,10 +1115,10 @@
         <joint_name>right_chasis_engine_joint</joint_name>
         <use_velocity_commands>true</use_velocity_commands>
         <topic>/wamv_v3/joint/right/thruster/cmd_pos</topic>
-        <position_p_gain>100.0</position_p_gain> <!-- Proportional gain -->
-        <position_i_gain>0.01</position_i_gain>   <!-- Integral gain -->
-        <position_d_gain>10.0</position_d_gain>  <!-- Derivative gain -->
-        <max_effort>10.0</max_effort>             <!-- Effort limit -->
+        <position_p_gain>500.0</position_p_gain> <!-- Proportional gain -->
+        <position_i_gain>0.0</position_i_gain>   <!-- Integral gain -->
+        <position_d_gain>20.0</position_d_gain>  <!-- Derivative gain -->
+        <max_effort>50.0</max_effort>             <!-- Effort limit -->
     </plugin>
 
 
