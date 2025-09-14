@@ -1,0 +1,546 @@
+<sdf version='1.11'>
+  <model name='js'>
+    <link name='js/base_link'>
+      <inertial>
+        <pose>0.00050006894388384435 0 0.00043900174255145691 0 0 0</pose>
+        <mass>12002.514999999999</mass>
+        <inertia>
+          <ixx>33206.074496159781</ixx>
+          <ixy>-2.4178008513310542e-21</ixy>
+          <ixz>-16.167572193407171</ixz>
+          <iyy>550773.89864131063</iyy>
+          <iyz>-9.2810679070399525e-22</iyz>
+          <izz>568835.049157448</izz>
+        </inertia>
+      </inertial>
+      <collision name='js/base_link_fixed_joint_lump__front_lidar_post_collision_collision'>
+        <pose>3.6389999999999998 0 2.7749999999999999 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.34999999999999992</length>
+            <radius>0.0076</radius>
+          </cylinder>
+        </geometry>
+      </collision>
+      <collision name='js/base_link_fixed_joint_lump__front_lidar_post_arm_collision_collision_1'>
+        <pose>3.669 0 2.9500000000000002 -1.2042771838760871 5.5511151231257827e-17 -1.570796326794897</pose>
+        <geometry>
+          <cylinder>
+            <length>0.065000000000000002</length>
+            <radius>0.0080000000000000002</radius>
+          </cylinder>
+        </geometry>
+      </collision>
+      <collision name='js/base_link_fixed_joint_lump__front_lidar_collision_collision_2'>
+        <pose>3.7090000000000001 0 3 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.074999999999999997</length>
+            <radius>0.055</radius>
+          </cylinder>
+        </geometry>
+      </collision>
+      <collision name='js/base_link_fixed_joint_lump__collision_collision_3'>
+        <pose>-8.25 0 1.1639999999999999 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://js5/meshes/js002.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <collision name='js/base_link_fixed_joint_lump__gps_collision_base_collision_4'>
+        <pose>0.70899999999999996 0 1.0249999999999999 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.050000000000000003</length>
+            <radius>0.014999999999999999</radius>
+          </cylinder>
+        </geometry>
+      </collision>
+      <collision name='js/base_link_fixed_joint_lump__gps_collision_antenna_collision_5'>
+        <pose>0.70899999999999996 0 1.1100000000000001 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.10000000000000001</length>
+            <radius>0.14999999999999999</radius>
+          </cylinder>
+        </geometry>
+      </collision>
+      <visual name='js/base_link_fixed_joint_lump__front_lidar_post_arm_visual_visual'>
+        <pose>3.6309999999999998 0 2.9470000000000001 -1.0471975511965981 5.5511151231257827e-17 -1.570796326794897</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://js5/components/sensor_post/mesh/sensor_post_arm.dae</uri>
+          </mesh>
+        </geometry>
+      </visual>
+      <visual name='js/base_link_fixed_joint_lump__front_lidar_visual_visual_1'>
+        <pose>3.7090000000000001 0 2.9649999999999999 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://js5/components/3d_lidar/mesh/3d_lidar.dae</uri>
+          </mesh>
+        </geometry>
+      </visual>
+      <visual name='js/base_link_fixed_joint_lump__visual_visual_2'>
+        <pose>-8.25 0 1.1639999999999999 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://js5/meshes/js002.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <diffuse>0 0 0 1</diffuse>
+          <ambient>0 0 0 1</ambient>
+        </material>
+      </visual>
+      <visual name='js/base_link_fixed_joint_lump__gps_visual_visual_3'>
+        <pose>0.70899999999999996 0 1 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://js5/components/gps/mesh/gps.dae</uri>
+          </mesh>
+        </geometry>
+      </visual>
+      <visual name='js/base_link_fixed_joint_lump__imu_visual_visual_4'>
+        <pose>0.70899999999999996 0 1 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.050000000000000003 0.025000000000000001 0.0050000000000000001</size>
+          </box>
+        </geometry>
+        <material>
+          <diffuse>1 0 0 1</diffuse>
+          <ambient>1 0 0 1</ambient>
+        </material>
+      </visual>
+      <sensor name='front_lidar_sensor' type='gpu_lidar'>
+        <topic>js/sensors/lidars/front_lidar/points</topic>
+        <update_rate>10</update_rate>
+        <always_on>true</always_on>
+        <visualize>true</visualize>
+        <lidar>
+          <scan>
+            <horizontal>
+              <samples>1875</samples>
+              <resolution>1</resolution>
+              <min_angle>-3.1415926535897931</min_angle>
+              <max_angle>3.1415926535897931</max_angle>
+            </horizontal>
+            <vertical>
+              <samples>16</samples>
+              <resolution>1</resolution>
+              <min_angle>-0.26179938779914941</min_angle>
+              <max_angle>0.26179938779914941</max_angle>
+            </vertical>
+          </scan>
+          <range>
+            <min>0.10000000000000001</min>
+            <max>130</max>
+            <resolution>0.01</resolution>
+          </range>
+          <noise>
+            <type>gaussian</type>
+            <mean>0</mean>
+            <stddev>0.01</stddev>
+          </noise>
+        </lidar>
+        <plugin name='gz::sim::systems::Sensors' filename='gz-sim-sensors-system'>
+          <render_engine>ogre2</render_engine>
+        </plugin>
+        <pose>3.7090000000000001 0 3 0 0 0</pose>
+      </sensor>
+      <sensor name='collision_sensor' type='contact'>
+        <always_on>true</always_on>
+        <update_rate>100</update_rate>
+        <contact>
+          <collision>js/dummy_link::collision</collision>
+          <topic>__default_topic__</topic>
+        </contact>
+        <topic>js/sensors/collision</topic>
+        <plugin name='gz::sim::systems::Contact' filename='gz-sim-contact-system'/>
+        <pose>0 0 0 0 0 0</pose>
+      </sensor>
+      <sensor name='imu_sensor' type='imu'>
+        <topic>js/sensors/imu/imu/data</topic>
+        <update_rate>100</update_rate>
+        <always_on>true</always_on>
+        <imu>
+          <angular_velocity>
+            <x>
+              <noise type='gaussian'>
+                <mean>0</mean>
+                <stddev>0.0089999999999999993</stddev>
+                <bias_mean>0.00075000000000000002</bias_mean>
+                <bias_stddev>7.9999999999999996e-07</bias_stddev>
+              </noise>
+            </x>
+            <y>
+              <noise type='gaussian'>
+                <mean>0</mean>
+                <stddev>0.0089999999999999993</stddev>
+                <bias_mean>0.00075000000000000002</bias_mean>
+                <bias_stddev>7.9999999999999996e-07</bias_stddev>
+              </noise>
+            </y>
+            <z>
+              <noise type='gaussian'>
+                <mean>0</mean>
+                <stddev>0.0089999999999999993</stddev>
+                <bias_mean>0.00075000000000000002</bias_mean>
+                <bias_stddev>7.9999999999999996e-07</bias_stddev>
+              </noise>
+            </z>
+          </angular_velocity>
+          <linear_acceleration>
+            <x>
+              <noise type='gaussian'>
+                <mean>0</mean>
+                <stddev>0.021000000000000001</stddev>
+                <bias_mean>0.050000000000000003</bias_mean>
+                <bias_stddev>0.0074999999999999997</bias_stddev>
+              </noise>
+            </x>
+            <y>
+              <noise type='gaussian'>
+                <mean>0</mean>
+                <stddev>0.021000000000000001</stddev>
+                <bias_mean>0.050000000000000003</bias_mean>
+                <bias_stddev>0.0074999999999999997</bias_stddev>
+              </noise>
+            </y>
+            <z>
+              <noise type='gaussian'>
+                <mean>0</mean>
+                <stddev>0.021000000000000001</stddev>
+                <bias_mean>0.050000000000000003</bias_mean>
+                <bias_stddev>0.0074999999999999997</bias_stddev>
+              </noise>
+            </z>
+          </linear_acceleration>
+        </imu>
+        <plugin name='gz::sim::systems::Imu' filename='gz-sim-imu-system'/>
+        <pose>0.70899999999999996 0 1 0 0 0</pose>
+      </sensor>
+    </link>
+    <joint name='js/left_chasis_engine_joint' type='revolute'>
+      <pose relative_to='js/base_link'>-8.5 0.90000000000000002 -0.80000000000000004 0 0 0</pose>
+      <parent>js/base_link</parent>
+      <child>js/left_engine_link</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>-3.1415926535897931</lower>
+          <upper>3.1415926535897931</upper>
+          <effort>10</effort>
+          <velocity>10</velocity>
+        </limit>
+        <dynamics>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+      </axis>
+    </joint>
+    <link name='js/left_engine_link'>
+      <pose relative_to='js/left_chasis_engine_joint'>0 0 0 0 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>0.10000000000000001</mass>
+        <inertia>
+          <ixx>0.0088924499999999997</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.0091112499999999996</iyy>
+          <iyz>0</iyz>
+          <izz>0.00078125000000000004</izz>
+        </inertia>
+      </inertial>
+    </link>
+    <joint name='js/left_engine_propeller_joint' type='revolute'>
+      <pose relative_to='js/left_engine_link'>0 0 0 0 0 0</pose>
+      <parent>js/left_engine_link</parent>
+      <child>js/left_propeller_link</child>
+      <axis>
+        <xyz>1 0 0</xyz>
+        <limit>
+          <effort>250</effort>
+          <velocity>100</velocity>
+          <lower>-inf</lower>
+          <upper>inf</upper>
+        </limit>
+        <dynamics>
+          <damping>0.050000000000000003</damping>
+          <friction>0.050000000000000003</friction>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+      </axis>
+    </joint>
+    <link name='js/left_propeller_link'>
+      <pose relative_to='js/left_engine_propeller_joint'>0 0 0 0 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>0.5</mass>
+        <inertia>
+          <ixx>0.0085450000000000005</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.0085450000000000005</iyy>
+          <iyz>0</iyz>
+          <izz>0.0144</izz>
+        </inertia>
+      </inertial>
+      <visual name='js/left_propeller_link_visual'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://js5/meshes/propellerL.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <diffuse>0 0 0 1</diffuse>
+          <ambient>0 0 0 1</ambient>
+        </material>
+      </visual>
+      <plugin filename='gz-sim-thruster-system' name='gz::sim::systems::Thruster'>
+        <namespace>js</namespace>
+        <topic>thrusters/left/thrust</topic>
+        <joint_name>js/left_engine_propeller_joint</joint_name>
+        <thrust_coefficient>0.02</thrust_coefficient>
+        <fluid_density>1024.0</fluid_density>
+        <propeller_diameter>0.4</propeller_diameter>
+        <velocity_control>True</velocity_control>
+        <max_thrust_cmd>250.0</max_thrust_cmd>
+        <min_thrust_cmd>-100.0</min_thrust_cmd>
+        <p_gain>0.1</p_gain>
+        <i_gain>0.01</i_gain>
+        <d_gain>0.001</d_gain>
+        <deadband>5.0</deadband>
+        <wake_fraction>0.2</wake_fraction>
+        <alpha_1>1.0</alpha_1>
+        <alpha_2>0.0</alpha_2>
+      </plugin>
+    </link>
+    <joint name='js/right_chasis_engine_joint' type='revolute'>
+      <pose relative_to='js/base_link'>-8.5 -0.90000000000000002 -0.80000000000000004 0 0 0</pose>
+      <parent>js/base_link</parent>
+      <child>js/right_engine_link</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>-3.1415926535897931</lower>
+          <upper>3.1415926535897931</upper>
+          <effort>10</effort>
+          <velocity>10</velocity>
+        </limit>
+        <dynamics>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+      </axis>
+    </joint>
+    <link name='js/right_engine_link'>
+      <pose relative_to='js/right_chasis_engine_joint'>0 0 0 0 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>0.10000000000000001</mass>
+        <inertia>
+          <ixx>0.0088924499999999997</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.0091112499999999996</iyy>
+          <iyz>0</iyz>
+          <izz>0.00078125000000000004</izz>
+        </inertia>
+      </inertial>
+    </link>
+    <joint name='js/right_engine_propeller_joint' type='revolute'>
+      <pose relative_to='js/right_engine_link'>0 0 0 0 0 0</pose>
+      <parent>js/right_engine_link</parent>
+      <child>js/right_propeller_link</child>
+      <axis>
+        <xyz>1 0 0</xyz>
+        <limit>
+          <effort>250</effort>
+          <velocity>100</velocity>
+          <lower>-inf</lower>
+          <upper>inf</upper>
+        </limit>
+        <dynamics>
+          <damping>0.050000000000000003</damping>
+          <friction>0.050000000000000003</friction>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+      </axis>
+    </joint>
+    <link name='js/right_propeller_link'>
+      <pose relative_to='js/right_engine_propeller_joint'>0 0 0 0 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>0.5</mass>
+        <inertia>
+          <ixx>0.0085450000000000005</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.0085450000000000005</iyy>
+          <iyz>0</iyz>
+          <izz>0.0144</izz>
+        </inertia>
+      </inertial>
+      <visual name='js/right_propeller_link_visual'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://js5/meshes/propellerR.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <diffuse>0 0 0 1</diffuse>
+          <ambient>0 0 0 1</ambient>
+        </material>
+      </visual>
+      <plugin filename='gz-sim-thruster-system' name='gz::sim::systems::Thruster'>
+        <namespace>js</namespace>
+        <topic>thrusters/right/thrust</topic>
+        <joint_name>js/right_engine_propeller_joint</joint_name>
+        <thrust_coefficient>-0.02</thrust_coefficient>
+        <fluid_density>1024.0</fluid_density>
+        <propeller_diameter>0.4</propeller_diameter>
+        <velocity_control>True</velocity_control>
+        <max_thrust_cmd>250.0</max_thrust_cmd>
+        <min_thrust_cmd>-100.0</min_thrust_cmd>
+        <p_gain>0.1</p_gain>
+        <i_gain>0.01</i_gain>
+        <d_gain>0.001</d_gain>
+        <deadband>5.0</deadband>
+        <wake_fraction>0.2</wake_fraction>
+        <alpha_1>1.0</alpha_1>
+        <alpha_2>0.0</alpha_2>
+      </plugin>
+    </link>
+    <plugin name='gz::sim::systems::Hydrodynamics' filename='gz-waves1-hydrodynamics-system'>
+      <enable>js</enable>
+      <hydrodynamics>
+        <damping_on>1</damping_on>
+        <viscous_drag_on>1</viscous_drag_on>
+        <pressure_drag_on>1</pressure_drag_on>
+        <water_density>1024.0</water_density>
+        <added_mass_linear>
+          <x>0.0</x>
+          <y>2000.0</y>
+          <z>4000.0</z>
+        </added_mass_linear>
+        <added_mass_angular>
+          <x>0.0</x>
+          <y>0.0</y>
+          <z>0.0</z>
+        </added_mass_angular>
+        <linear_damping>
+          <x>305.52</x>
+          <y>1677.5</y>
+          <z>127297.95</z>
+          <roll>127297.95</roll>
+          <pitch>12729.95</pitch>
+          <yaw>22216.615</yaw>
+        </linear_damping>
+        <quadratic_damping>
+          <x>611.03</x>
+          <y>18172.9</y>
+          <z>0.0</z>
+          <roll>12729.79</roll>
+          <pitch>12729.79</pitch>
+          <yaw>634760.4286</yaw>
+        </quadratic_damping>
+        <hull_radius>3.0</hull_radius>
+        <boat_width>3.8</boat_width>
+        <boat_length>16.5</boat_length>
+        <length_n>2</length_n>
+      </hydrodynamics>
+      <markers>
+        <update_rate>10</update_rate>
+        <water_patch>false</water_patch>
+        <waterline>false</waterline>
+        <underwater_surface>false</underwater_surface>
+      </markers>
+    </plugin>
+    <plugin name='gz::sim::systems::NavSat' filename='gz-sim-navsat-system'>
+      <link_name>js/gps_link</link_name>
+      <topic>js/sensors/gps/gps/fix</topic>
+      <velocity_topic>js/sensors/gps/gps/fix_velocity</velocity_topic>
+      <update_rate>20</update_rate>
+      <always_on>true</always_on>
+      <position_sensing>
+        <horizontal>
+          <noise type='gaussian'>
+            <mean>0.0</mean>
+            <stddev>2.0</stddev>
+          </noise>
+        </horizontal>
+        <vertical>
+          <noise type='gaussian'>
+            <mean>0.0</mean>
+            <stddev>4.0</stddev>
+          </noise>
+        </vertical>
+      </position_sensing>
+      <velocity_sensing>
+        <horizontal>
+          <noise type='gaussian'>
+            <mean>0.0</mean>
+            <stddev>0.1</stddev>
+          </noise>
+        </horizontal>
+        <vertical>
+          <noise type='gaussian'>
+            <mean>0.0</mean>
+            <stddev>0.1</stddev>
+          </noise>
+        </vertical>
+      </velocity_sensing>
+    </plugin>
+    <frame name='js/front_lidar_post_arm_to_front_lidar_joint' attached_to='js/front_lidar_post_arm_link'>
+      <pose>0.040000000000000001 0 0.050000000000000003 0 0 0</pose>
+    </frame>
+    <frame name='js/front_lidar_link' attached_to='js/front_lidar_post_arm_to_front_lidar_joint'>
+      <pose>0 0 0 0 0 0</pose>
+    </frame>
+    <frame name='js/front_lidar_post_to_front_lidar_post_arm_joint' attached_to='js/front_lidar_post_link'>
+      <pose>0.029999999999999999 0 0.1750000000000001 0 0 0</pose>
+    </frame>
+    <frame name='js/front_lidar_post_arm_link' attached_to='js/front_lidar_post_to_front_lidar_post_arm_joint'>
+      <pose>0 0 0 0 0 0</pose>
+    </frame>
+    <frame name='js/base_to_front_lidar_post_joint' attached_to='js/base_link'>
+      <pose>3.6389999999999998 0 2.7749999999999999 0 0 0</pose>
+    </frame>
+    <frame name='js/front_lidar_post_link' attached_to='js/base_to_front_lidar_post_joint'>
+      <pose>0 0 0 0 0 0</pose>
+    </frame>
+    <frame name='js/dummy_joint' attached_to='js/base_link'>
+      <pose>0 0 0 0 0 0</pose>
+    </frame>
+    <frame name='js/dummy_link' attached_to='js/dummy_joint'>
+      <pose>0 0 0 0 0 0</pose>
+    </frame>
+    <frame name='js/gps_joint' attached_to='js/base_link'>
+      <pose>0.70899999999999996 0 1 0 0 0</pose>
+    </frame>
+    <frame name='js/gps_link' attached_to='js/gps_joint'>
+      <pose>0 0 0 0 0 0</pose>
+    </frame>
+    <frame name='js/imu_joint' attached_to='js/base_link'>
+      <pose>0.70899999999999996 0 1 0 0 0</pose>
+    </frame>
+    <frame name='js/imu_link' attached_to='js/imu_joint'>
+      <pose>0 0 0 0 0 0</pose>
+    </frame>
+  </model>
+</sdf>
