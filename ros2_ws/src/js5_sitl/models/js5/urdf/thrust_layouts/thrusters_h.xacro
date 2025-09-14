@@ -1,0 +1,125 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- Dummy link, which thruster plugin looks for -->
+  <link name="${namespace}/left_engine_link">
+    <inertial>
+      <mass value="0.1"/>
+      <inertia ixx="0.00889245" ixy="0.0" ixz="0.0" iyy="0.00911125" iyz="0.0" izz="0.00078125"/>
+    </inertial>
+  </link>
+
+  <!-- No additional collision, since propeller is inside robot body -->
+  <link name="${namespace}/left_propeller_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://js5_sitl/models/js5/meshes/propellerL.dae"/>
+      </geometry>
+      <material name="${namespace}/left_propeller_material">
+        <diffuse>1.0 1.0 1.0</diffuse>
+        <specular>1.0 1.0 1.0</specular>
+        <pbr>
+          <metal>
+            <albedo_map>package://js5_sitl/models/js5/materials/textures/Boat_Albedo.png</albedo_map>
+            <metalness_map>package://js5_sitl/models/js5/materials/textures/Boat_Metalness.png</metalness_map>
+            <roughness_map>package://js5_sitl/models/js5/materials/textures/Boat_Roughness.png</roughness_map>
+          </metal>
+        </pbr>
+        <!-- fallback to script if no PBR support-->
+        <script>
+          <uri>package://js5_sitl/models/js5/materials/scripts/</uri>
+          <uri>package://js5_sitl/models/js5/materials/textures/</uri>
+          <name>UrbanTile/Boat_Diffuse</name>
+        </script>
+      </material>
+    </visual>
+    <inertial>
+      <mass value="0.5"/>
+      <inertia ixx="0.008545" ixy="0.0" ixz="0.0" iyy="0.008545" iyz="0.0" izz="0.0144"/>
+    </inertial>
+  </link>
+
+  <!-- Dummy joint, which thruster plugin looks for -->
+  <joint name="${namespace}/left_chasis_engine_joint" type="revolute">
+    <axis xyz="0 0 1"/>
+    <origin rpy="0 0 0" xyz="-8.5 0.9 -0.8"/>
+    <parent link="${namespace}/base_link"/>
+    <child link="${namespace}/left_engine_link"/>
+    <limit lower="${-pi}" upper="${pi}" effort="10" velocity="10"/>
+  </joint>
+
+  <joint name="${namespace}/left_engine_propeller_joint" type="continuous">
+    <axis rpy="0 0 0" xyz="1 0 0"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="${namespace}/left_engine_link"/>
+    <child link="${namespace}/left_propeller_link"/>
+    <limit effort="250" velocity="100" />
+    <dynamics friction="0.05" damping="0.05" />
+  </joint>
+
+  <!-- Dummy link, which thruster plugin looks for -->
+  <link name="${namespace}/right_engine_link">
+    <inertial>
+      <mass value="0.1"/>
+      <inertia ixx="0.00889245" ixy="0.0" ixz="0.0" iyy="0.00911125" iyz="0.0" izz="0.00078125"/>
+    </inertial>
+  </link>
+
+  <!-- No additional collision, since propeller is inside robot body -->
+  <link name="${namespace}/right_propeller_link">
+    <visual>
+      <geometry>
+        <mesh filename="model://js5/meshes/propellerR.dae"/>
+      </geometry>
+      <material name="${namespace}/right_propeller_material">
+        <diffuse>1.0 1.0 1.0</diffuse>
+        <specular>1.0 1.0 1.0</specular>
+        <pbr>
+          <metal>
+            <albedo_map>model://js5/materials/textures/Boat_Albedo.png</albedo_map>
+            <metalness_map>model://js5/materials/textures/Boat_Metalness.png</metalness_map>
+            <roughness_map>model://js5/materials/textures/Boat_Roughness.png</roughness_map>
+          </metal>
+        </pbr>
+        <!-- fallback to script if no PBR support-->
+        <script>
+          <uri>model://js5/materials/scripts/</uri>
+          <uri>model://js5/materials/textures/</uri>
+          <name>UrbanTile/Boat_Diffuse</name>
+        </script>
+      </material>
+    </visual>
+    <inertial>
+      <mass value="0.5"/>
+      <inertia ixx="0.008545" ixy="0.0" ixz="0.0" iyy="0.008545" iyz="0.0" izz="0.0144"/>
+    </inertial>
+  </link>
+
+  <!-- Dummy joint, which thruster plugin looks for -->
+  <joint name="${namespace}/right_chasis_engine_joint" type="revolute">
+    <axis xyz="0 0 1"/>
+    <origin rpy="0 0 0" xyz="-8.5 -0.9 -0.8"/>
+    <parent link="${namespace}/base_link"/>
+    <child link="${namespace}/right_engine_link"/>
+    <limit lower="${-pi}" upper="${pi}" effort="10" velocity="10"/>
+  </joint>
+
+  <joint name="${namespace}/right_engine_propeller_joint" type="continuous">
+    <axis rpy="0 0 0" xyz="1 0 0"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="${namespace}/right_engine_link"/>
+    <child link="${namespace}/right_propeller_link"/>
+    <limit effort="250" velocity="100" />
+    <dynamics friction="0.05" damping="0.05" />
+  </joint>
+
+  <!-- Gazebo Harmonic Thruster Plugins -->
+  <!-- Left Thruster (positive thrust coefficient) -->
+  <xacro:js_thruster_config name="left" 
+                           thrust_coefficient="0.02" />
+  
+  <!-- Right Thruster (negative thrust coefficient for counter-rotation) -->
+  <xacro:js_thruster_config name="right" 
+                           thrust_coefficient="-0.02" />
+
+</robot>

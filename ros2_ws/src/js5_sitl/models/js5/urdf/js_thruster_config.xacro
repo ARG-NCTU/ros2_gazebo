@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  
+  <!-- Macro for Gazebo Harmonic Thruster Configuration -->
+  <xacro:macro name="js_thruster_config" params="name 
+                                                 thrust_coefficient:=0.02
+                                                 max_thrust_cmd:=250.0
+                                                 min_thrust_cmd:=-100.0
+                                                 propeller_diameter:=0.4
+                                                 fluid_density:=1024.0
+                                                 deadband:=5.0
+                                                 wake_fraction:=0.2
+                                                 p_gain:=0.1
+                                                 i_gain:=0.01
+                                                 d_gain:=0.001
+                                                 alpha_1:=1.0
+                                                 alpha_2:=0.0
+                                                 velocity_control:=true">
+    
+    <!-- Gazebo Harmonic Thruster Plugin -->
+    <gazebo reference="${namespace}/${name}_propeller_link">
+      <plugin filename="gz-sim-thruster-system" name="gz::sim::systems::Thruster">
+        <namespace>${namespace}</namespace>
+        <topic>${thruster_namespace}${name}/thrust</topic>
+        <joint_name>${namespace}/${name}_engine_propeller_joint</joint_name>
+        <thrust_coefficient>${thrust_coefficient}</thrust_coefficient>
+        <fluid_density>${fluid_density}</fluid_density>
+        <propeller_diameter>${propeller_diameter}</propeller_diameter>
+        <velocity_control>${velocity_control}</velocity_control>
+        <max_thrust_cmd>${max_thrust_cmd}</max_thrust_cmd>
+        <min_thrust_cmd>${min_thrust_cmd}</min_thrust_cmd>
+        
+        <!-- PID Controller for propeller joint -->
+        <p_gain>${p_gain}</p_gain>
+        <i_gain>${i_gain}</i_gain>
+        <d_gain>${d_gain}</d_gain>
+        
+        <!-- Deadband threshold -->
+        <deadband>${deadband}</deadband>
+        
+        <!-- Wake fraction for realistic propeller performance -->
+        <wake_fraction>${wake_fraction}</wake_fraction>
+        
+        <!-- Propeller constants from Fossen's equations -->
+        <alpha_1>${alpha_1}</alpha_1>
+        <alpha_2>${alpha_2}</alpha_2>
+      </plugin>
+    </gazebo>
+  </xacro:macro>
+  
+</robot>

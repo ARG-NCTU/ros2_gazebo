@@ -1,0 +1,74 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:macro name="usv_dynamics_gazebo" params="name 
+                                                  hull_radius:=3.0 
+                                                  boat_width:=3.8 
+                                                  boat_length:=16.5 
+                                                  length_n:=2">    <!--Gazebo Harmonic Plugin for simulating js dynamics with asv_wave_sim-->
+    <gazebo>
+      <plugin filename="gz-waves1-hydrodynamics-system" name="gz::sim::systems::Hydrodynamics">
+        <!-- Apply hydrodynamics to the entire model -->
+        <enable>${namespace}</enable>
+        
+        <!-- Hydrodynamics Parameters converted from original VRX-style -->
+        <hydrodynamics>
+          <damping_on>1</damping_on>
+          <viscous_drag_on>1</viscous_drag_on>
+          <pressure_drag_on>1</pressure_drag_on>
+          
+          <!-- Water properties -->
+          <water_density>1024.0</water_density>
+          
+          <!-- Added mass parameters (converted from original xDotU, yDotV, etc.) -->
+          <added_mass_linear>
+            <x>0.0</x>         <!-- xDotU was commented out, so 0 -->
+            <y>2000.0</y>      <!-- yDotV -->
+            <z>4000.0</z>      <!-- zDotW -->
+          </added_mass_linear>
+          
+          <added_mass_angular>
+            <x>0.0</x>         <!-- kDotP -->
+            <y>0.0</y>         <!-- mDotQ -->
+            <z>0.0</z>         <!-- nDotR -->
+          </added_mass_angular>
+          
+          <!-- Linear drag coefficients (converted from xU, yV, zW, etc.) -->
+          <linear_damping>
+            <x>305.52</x>      <!-- xU -->
+            <y>1677.5</y>      <!-- yV -->
+            <z>127297.95</z>   <!-- zW -->
+            <roll>127297.95</roll>   <!-- kP -->
+            <pitch>12729.95</pitch>  <!-- mQ -->
+            <yaw>22216.615</yaw>     <!-- nR -->
+          </linear_damping>
+          
+          <!-- Quadratic drag coefficients (converted from xUU, yVV, etc.) -->
+          <quadratic_damping>
+            <x>611.03</x>      <!-- xUU -->
+            <y>18172.9</y>     <!-- yVV -->
+            <z>0.0</z>         <!-- zWW -->
+            <roll>12729.79</roll>    <!-- kPP -->
+            <pitch>12729.79</pitch>  <!-- mQQ -->
+            <yaw>634760.4286</yaw>   <!-- nRR -->
+          </quadratic_damping>
+          
+          <!-- Vessel geometry for buoyancy calculations -->
+          <hull_radius>${hull_radius}</hull_radius>
+          <boat_width>${boat_width}</boat_width>
+          <boat_length>${boat_length}</boat_length>
+          
+          <!-- Discretization parameters -->
+          <length_n>${length_n}</length_n>
+        </hydrodynamics>
+        
+        <!-- Control visibility of debug markers -->
+        <markers>
+          <update_rate>10</update_rate>
+          <water_patch>false</water_patch>
+          <waterline>false</waterline>
+          <underwater_surface>false</underwater_surface>
+        </markers>
+      </plugin>
+    </gazebo>
+  </xacro:macro>
+</robot>

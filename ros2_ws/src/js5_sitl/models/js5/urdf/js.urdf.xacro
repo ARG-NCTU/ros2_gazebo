@@ -1,0 +1,88 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:arg name="namespace" default="js"/>  
+  <xacro:property name="namespace" value="$(arg namespace)" scope="global" /> 
+  
+  <!-- Base link (empty link for URDF compatibility) -->
+  <link name="${namespace}/base_link">
+  </link>
+
+  <!-- Fixed joint connecting base_link to main vessel link -->
+  <joint name="${namespace}/dummy_joint" type="fixed">
+    <parent link="${namespace}/base_link"/>
+    <child link="${namespace}/dummy_link"/>
+  </joint>
+
+  <!-- Main vessel link with updated urdf-compatible configuration -->
+  <link name="${namespace}/dummy_link">
+    <!-- Visual representation -->
+    <visual name="visual">
+      <origin xyz="-8.25 0 1.164" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="model://js5/meshes/js002.dae"/>
+      </geometry>
+      <material name="dummy_material">
+        <diffuse>1.0 1.0 1.0</diffuse>
+        <specular>0.5 0.5 0.5</specular>
+        <pbr>
+          <metal>
+            <albedo_map>model://js5/materials/textures/js002.png</albedo_map>
+          </metal>
+        </pbr>
+        <!-- Fallback for non-PBR rendering -->
+        <script>
+          <uri>model://js5/materials/scripts/</uri>
+          <uri>model://js5/materials/textures/</uri>
+          <name>js_material</name>
+        </script>
+      </material>
+    </visual>
+
+    <!-- Inertial properties -->
+    <inertial>
+      <mass value="12000.0"/>
+      <inertia ixx="33192.67" ixy="0.0" ixz="0.0" 
+               iyy="550740.67" iyz="0.0" izz="568815.2"/>
+    </inertial>
+
+    <!-- Collision geometry -->
+    <collision name="collision">
+      <origin xyz="-8.25 0 1.164" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="model://js5/meshes/js002.dae"/>
+      </geometry>
+      <!-- Surface properties for maritime simulation -->
+      <surface>
+        <contact>
+          <ode>
+            <kp>1e+6</kp>
+            <kd>1000</kd>
+            <max_vel>0.01</max_vel>
+            <min_depth>0.001</min_depth>
+          </ode>
+        </contact>
+        <friction>
+          <ode>
+            <mu>0.3</mu>
+            <mu2>0.3</mu2>
+            <fdir1>0 0 0</fdir1>
+          </ode>
+        </friction>
+      </surface>
+    </collision>
+  </link>
+
+  <!-- Gazebo Harmonic Contact Sensor -->
+  <gazebo reference="${namespace}/dummy_link">
+    <sensor name="collision_sensor" type="contact">
+      <always_on>true</always_on>
+      <update_rate>100.0</update_rate>
+      <contact>
+        <collision>${namespace}/dummy_link::collision</collision>
+      </contact>
+      <topic>${namespace}/sensors/collision</topic>
+      <plugin filename="gz-sim-contact-system" name="gz::sim::systems::Contact">
+      </plugin>
+    </sensor>
+  </gazebo>
+</robot>

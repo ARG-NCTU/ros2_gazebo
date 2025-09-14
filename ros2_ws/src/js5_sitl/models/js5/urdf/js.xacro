@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="js">
+
+  <!-- Arguments -->
+  <xacro:arg name="thruster_config" default="" />
+  <xacro:arg name="namespace" default="js" />
+  <xacro:arg name="thruster_namespace" default="thrusters/" />
+
+  <!-- Properties -->
+  <xacro:property name="namespace" value="$(arg namespace)" scope="global" />
+  <xacro:property name="thruster_namespace" value="$(arg thruster_namespace)" scope="global" />
+
+  <!-- Include Macros -->
+  <xacro:include filename="$(find js5_sitl)/models/js5/urdf/macros.xacro" />
+
+  <!-- Attach Hydrodynamics Plugin -->
+  <xacro:usv_dynamics_gazebo name="js_dynamics_plugin" />
+
+  <!-- Robot Mesh (urdf-compatible) -->
+  <xacro:include filename="$(find js5_sitl)/models/js5/urdf/js.urdf.xacro" />
+
+  <!-- Thrusters -->
+  <!-- Add thrusters based on thruster_config variable -->
+  <xacro:property name="thruster_conf" value="$(arg thruster_config)" />
+  <xacro:include filename="$(find js5_sitl)/models/js5/urdf/js_thruster_config.xacro" />
+
+  <!-- Default js with two aft thrusters (H configuration) -->
+  <xacro:if value="${thruster_conf == 'H'}">
+    <xacro:include filename="$(find js5_sitl)/models/js5/urdf/thrust_layouts/thrusters_h.xacro" />
+  </xacro:if>
+  <xacro:if value="${thruster_conf == 'M'}">
+    <xacro:include filename="$(find js5_sitl)/models/js5/urdf/thrust_layouts/thrusters_m.xacro" />
+  </xacro:if>
+
+  <!-- Sensors -->
+  <xacro:arg name="camera_namespace" default="cameras/"/>
+  <xacro:arg name="sensor_namespace" default="sensors/"/>
+  <xacro:property name="camera_namespace" value="$(arg camera_namespace)" scope="global" />
+  <xacro:property name="sensor_namespace" value="$(arg sensor_namespace)" scope="global" />
+  
+  <!-- <xacro:wamv_camera name="front_left_camera"  x="-0.61" y="0.2"  z="4.7" 
+  post_z_from="4.6" P="${radians(15)}" />
+  <xacro:wamv_camera name="front_right_camera" x="-0.61" y="-0.2" z="4.7" 
+  post_z_from="4.6" P="${radians(15)}" /> -->
+  <!-- <xacro:lidar name="front_lidar" type="16_beam" x="-0.595" z="5" 
+  P="${radians(8)}" post_z_from="4.6"/> -->
+  <xacro:lidar name="front_lidar" type="16_beam" x="3.709" z="3" 
+  P="${radians(0)}" post_z_from="2.6"/>
+  <xacro:wamv_gps name="gps" x="0.709" z="1.0" 
+  	update_rate="20" />
+  <xacro:wamv_imu name="imu" x="0.709" y="-0.0" z="1.0" update_rate="100" />
+
+</robot>
