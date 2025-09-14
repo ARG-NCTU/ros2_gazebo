@@ -50,6 +50,8 @@ docker run \
   -e HOME=/home/${USER_NAME} \
   -e OPENAI_API_KEY=$OPENAI_API_KEY\
   -e NVIDIA_DRIVER_CAPABILITIES=all \
+  -e XDG_RUNTIME_DIR=/tmp/runtime-${USER_NAME} \
+  -v /tmp/runtime-${USER_NAME}:/tmp/runtime-${USER_NAME} \
   -v "$XAUTH:$XAUTH" \
   -v "/home/${USER}/${REPO_NAME}:/home/${USER_NAME}/${REPO_NAME}" \
   -v "/tmp/.X11-unix:/tmp/.X11-unix" \
