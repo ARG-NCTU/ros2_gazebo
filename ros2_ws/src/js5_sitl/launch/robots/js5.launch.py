@@ -161,30 +161,6 @@ def generate_launch_description():
         description="Use Gazebo TF"
     )
 
-    spawn_x_arg = DeclareLaunchArgument(
-        "spawn_x", 
-        default_value="0.0", 
-        description="X spawn position"
-    )
-
-    spawn_y_arg = DeclareLaunchArgument(
-        "spawn_y", 
-        default_value="0.0", 
-        description="Y spawn position"
-    )
-
-    spawn_z_arg = DeclareLaunchArgument(
-        "spawn_z", 
-        default_value="0.1", 
-        description="Z spawn position"
-    )
-
-    spawn_yaw_arg = DeclareLaunchArgument(
-        "spawn_yaw", 
-        default_value="0.0", 
-        description="Yaw spawn orientation"
-    )
-
     use_sitl_arg = DeclareLaunchArgument(
         "use_sitl",
         default_value="true",

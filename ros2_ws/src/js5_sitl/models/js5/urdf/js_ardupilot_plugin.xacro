@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ArduPilot Plugin Macro -->
+  <xacro:macro name="ardupilot_plugin" params="
+    plugin_name:='ArduPilotPlugin'
+    filename:='ArduPilotPlugin'
+    fdm_addr:='127.0.0.1'
+    fdm_port_in:='9002'
+    connection_timeout_max_count:='5'
+    lock_step:='1'
+    gazebo_xyz_to_ned:='0 0 0 180 0 90'
+    model_xyz_to_airplane:='0 0 0 180 0 0'
+    imu_name:='imu_link::imu_sensor'
+    model_name:='js5'
+    left_propeller_joint:='js/left_engine_propeller_joint'
+    right_propeller_joint:='js/right_engine_propeller_joint'
+    motor_multiplier:='70'
+    motor_offset:='-0.5'
+    servo_min:='1000'
+    servo_max:='2000'
+    port_channel:='0'
+    stbd_channel:='2'">
+
+    <plugin name="${plugin_name}" filename="${filename}">
+      
+      <!-- Flight Dynamics Model Configuration -->
+      <fdm_addr>${fdm_addr}</fdm_addr>
+      <fdm_port_in>${fdm_port_in}</fdm_port_in>        
+      <connectionTimeoutMaxCount>${connection_timeout_max_count}</connectionTimeoutMaxCount>
+      <lock_step>${lock_step}</lock_step>
+      
+      <!-- Coordinate System Transformations -->
+      <gazeboXYZToNED degrees="true">${gazebo_xyz_to_ned}</gazeboXYZToNED>
+      <modelXYZToAirplaneXForwardZDown degrees="true">${model_xyz_to_airplane}</modelXYZToAirplaneXForwardZDown>
+      
+      <!-- IMU Configuration -->
+      <imuName>${imu_name}</imuName>
+
+      <!-- Port Motor Control (Counter-Clockwise) -->
+      <!-- 
+        SERVO1_FUNCTION 73 (ThrottleLeft)
+        SERVO1_MAX 2000
+        SERVO1_MIN 1000
+      -->
+      <control channel="${port_channel}">
+        <jointName>${port_motor_joint}</jointName>
+        <multiplier>${motor_multiplier}</multiplier>
+        <offset>${motor_offset}</offset>
+        <servo_min>${servo_min}</servo_min>
+        <servo_max>${servo_max}</servo_max>
+        <type>COMMAND</type>
+        <cmd_topic>/model/${model_name}/joint/${port_motor_joint}/cmd_thrust</cmd_topic>
+      </control>
+
+      <!-- Starboard Motor Control (Counter-Clockwise) -->
+      <!-- 
+        SERVO3_FUNCTION 74 (ThrottleRight)
+        SERVO3_MAX 2000
+        SERVO3_MIN 1000
+      -->
+      <control channel="${stbd_channel}">
+        <jointName>${stbd_motor_joint}</jointName>
+        <multiplier>${motor_multiplier}</multiplier>
+        <offset>${motor_offset}</offset>
+        <servo_min>${servo_min}</servo_min>
+        <servo_max>${servo_max}</servo_max>
+        <type>COMMAND</type>
+        <cmd_topic>/model/${model_name}/joint/${stbd_motor_joint}/cmd_thrust</cmd_topic>
+      </control>
+
+    </plugin>
+
+  </xacro:macro>
+
+  <!-- Example usage with default parameters -->
+  <!--
+  <xacro:ardupilot_plugin />
+  -->
+
+  <!-- Example usage with custom parameters -->
+  <!--
+  <xacro:ardupilot_plugin 
+    model_name="my_boat"
+    fdm_port_in="9003"
+    imu_name="my_imu_link::my_imu_sensor"
+    port_motor_joint="left_motor_joint"
+    stbd_motor_joint="right_motor_joint" />
+  -->
+
+</robot>
